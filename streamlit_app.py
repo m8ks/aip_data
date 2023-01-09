@@ -62,7 +62,7 @@ def main():
         with st.beta_expander('Current record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         list_of_records = [i[0] for i in view_all_ids()]
@@ -87,7 +87,7 @@ def main():
                 # new_step = st.selectbox(step, ["Enacted", "Actual", "Request",
                 #                                "Request Plus Mandatory", "House", "Senate", "Request w Add",
                 #                                "House Stimulus"])
-                new_amount = st.number_input(amount)
+                new_amount = st.number_input("Input amount", amount)
 
             if st.button('Update record'):
                 update_record(new_amount, new_note, funding_line_id, fiscal_year, step)
@@ -96,7 +96,7 @@ def main():
             with st.beta_expander('View updated record'):
                 result = view_data()
                 # st.write(result)
-                clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+                clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
                 st.dataframe(clean_df)
 
 
@@ -105,7 +105,7 @@ def main():
         with st.beta_expander('View data'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         unique_list = [i[0] for i in view_all_ids()]
@@ -117,7 +117,7 @@ def main():
         with st.beta_expander('Updated record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
     else:
