@@ -3,8 +3,6 @@ import pandas as pd
 from aip_db import *
 import streamlit.components.v1 as stc
 
-import plotly.express as px
-
 HTML_BANNER = ("\n"
                "    <div style=\"background-color:#464e5f;padding:10px;border-radius:10px\">\n"
                "    <h1 style=\"color:white;text-align:center;\">AIP.ORG dat management demo</h1>\n"
