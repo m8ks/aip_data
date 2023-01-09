@@ -43,8 +43,8 @@ def main():
         st.subheader('View records')
         with st.beta_expander('View all records'):
             result = view_data()
-            st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            # st.write(result)
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         # with st.beta_expander("STEP"):
@@ -62,11 +62,11 @@ def main():
         with st.beta_expander('Current record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         list_of_records = [i[0] for i in view_all_ids()]
-        selected_id = st.selectbox('Funding Line ID', list_of_records)
+        selected_id = st.selectbox('KEY', list_of_records)
         return_id = get_record(selected_id)
         # st.write(task_result)
 
@@ -96,7 +96,7 @@ def main():
             with st.beta_expander('View updated record'):
                 result = view_data()
                 # st.write(result)
-                clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+                clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
                 st.dataframe(clean_df)
 
 

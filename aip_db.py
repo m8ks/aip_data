@@ -43,20 +43,19 @@ def insert_record(key, funding_line_id, fiscal_year, step, amount, notes):
 
 
 def view_data():
-    cx.execute('SELECT * FROM FUNDINGAMOUNTS')
+    cx.execute('SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID = \'DOE-OS\' AND FISCALYEAR = 2022')
     data = cx.fetchall()
     return data
 
 
 def view_all_ids():
-    cx.execute('SELECT DISTINCT FUNDINGLINEID FROM FUNDINGAMOUNTS')
+    cx.execute('SELECT DISTINCT KEY FROM FUNDINGAMOUNTS')
     data = cx.fetchall()
     return data
 
 
 def get_record(funding_line_id, step, fiscal_year):
-    cx.execute('SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID ="{}" AND STEP ="{}" AND FISCALYEAR ="{}"'.format(
-        funding_line_id, step, fiscal_year))
+    cx.execute('SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID ="{}" AND STEP ="{}" AND FISCALYEAR ="{}"'.format(funding_line_id, step, fiscal_year))
     data = cx.fetchall()
     return data
 
