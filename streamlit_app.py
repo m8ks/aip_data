@@ -5,7 +5,7 @@ import streamlit.components.v1 as stc
 
 HTML_BANNER = ("\n"
                "    <div style=\"background-color:#464e5f;padding:10px;border-radius:10px\">\n"
-               "    <h1 style=\"color:white;text-align:center;\">AIP.ORG dat management demo</h1>\n"
+               "    <h1 style=\"color:white;text-align:center;\">AIP.ORG datа management demo</h1>\n"
                "    <p style=\"color:white;text-align:center;\">Built with Streamlit</p>\n"
                "    </div>\n"
                "    ")
@@ -123,7 +123,7 @@ def main():
     else:
         st.subheader('About')
         st.info('Build for AIP.ORG by dPrism')
-        st.text('Dmitry Taranenko')
+        #st.text('Dmitry Taranenko')
 
 
 if __name__ == '__main__':
