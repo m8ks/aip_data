@@ -43,8 +43,8 @@ def main():
         st.subheader('View records')
         with st.beta_expander('View all records'):
             result = view_data()
-            # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            st.write(result)
+            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         # with st.beta_expander("STEP"):

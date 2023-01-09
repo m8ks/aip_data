@@ -37,8 +37,8 @@ cx = connect.cursor()
 #														 NOTES VARCHAR')
 
 def insert_record(key, funding_line_id, fiscal_year, step, amount, notes):
-    cx.execute('INSERT INTO FUNDINGAMOUNTS(KEY, FUNDINGLINEID, FISCALYEAR, STEP, AMOUNT, NOTES2) VALUES (?,?,?,?,?,?)',
-               (key, funding_line_id, fiscal_year, step, amount, notes))
+    cx.execute("INSERT INTO FUNDINGAMOUNTS(KEY, FUNDINGLINEID, FISCALYEAR, STEP, AMOUNT, NOTES2) VALUES ({}, '{}','{}','{}',{},'{}')".format(
+        key, funding_line_id, fiscal_year, step, amount, notes))
     connect.commit()
 
 
