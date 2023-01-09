@@ -28,7 +28,7 @@ def main():
         with col2:
             key = st.number_input('Key', 55555)
             funding_line_id = st.text_input('Funding Line ID', 'DOE-OS')
-            fiscal_year = st.number_input('Fiscal Year', 2015)
+            fiscal_year = st.number_input('Fiscal Year', 2022)
             step = st.selectbox('Step', ['Enacted', 'Actual', 'Request',
                                          'Request Plus Mandatory', 'House', 'Senate', 'Request w Add',
                                          'House Stimulus'])
