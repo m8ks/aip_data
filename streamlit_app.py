@@ -5,6 +5,7 @@ import streamlit.components.v1 as stc
 
 HTML_BANNER = ("\n"
                "    <div style=\"background-color:#464e5f;padding:10px;border-radius:10px\">\n"
+               "    <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
                "    <h1 style=\"color:white;text-align:center;\">AIP.ORG datа management demo</h1>\n"
                "    <p style=\"color:white;text-align:center;\">Built with Streamlit</p>\n"
                "    </div>\n"
@@ -28,7 +29,7 @@ def main():
         with col2:
             key = st.number_input('Key', 55555)
             funding_line_id = st.text_input('Funding Line ID', 'DOE-OS')
-            fiscal_year = st.number_input('Fiscal Year', 2015)
+            fiscal_year = st.number_input('Fiscal Year', 2022)
             step = st.selectbox('Step', ['Enacted', 'Actual', 'Request',
                                          'Request Plus Mandatory', 'House', 'Senate', 'Request w Add',
                                          'House Stimulus'])
@@ -44,7 +45,7 @@ def main():
         with st.beta_expander('View all records'):
             result = view_data()
             st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         # with st.beta_expander("STEP"):
@@ -62,11 +63,11 @@ def main():
         with st.beta_expander('Current record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         list_of_records = [i[0] for i in view_all_ids()]
-        selected_id = st.selectbox('Funding Line ID', list_of_records)
+        selected_id = st.selectbox('Key', list_of_records)
         return_id = get_record(selected_id)
         # st.write(task_result)
 
@@ -87,16 +88,16 @@ def main():
                 # new_step = st.selectbox(step, ["Enacted", "Actual", "Request",
                 #                                "Request Plus Mandatory", "House", "Senate", "Request w Add",
                 #                                "House Stimulus"])
-                new_amount = st.number_input("Input amount", amount)
+                new_amount = st.number_input("New amount", amount)
 
             if st.button('Update record'):
                 update_record(new_amount, new_note, funding_line_id, fiscal_year, step)
-                st.success('Updated ::{} ::to FUNDINGAMOUNTS table {}'.format(amount, new_amount))
+                st.success('Updated ::{} ::to FUNDINGAMOUNTS table {}'.format(new_amount, new_note))
 
             with st.beta_expander('View updated record'):
                 result = view_data()
                 # st.write(result)
-                clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+                clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
                 st.dataframe(clean_df)
 
 
@@ -105,7 +106,7 @@ def main():
         with st.beta_expander('View data'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         unique_list = [i[0] for i in view_all_ids()]
@@ -117,7 +118,7 @@ def main():
         with st.beta_expander('Updated record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
     else:
