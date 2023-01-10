@@ -49,26 +49,26 @@ def view_data():
 
 
 def view_all_ids():
-    cx.execute('SELECT DISTINCT FUNDINGLINEID FROM FUNDINGAMOUNTS')
+    cx.execute('SELECT DISTINCT KEY FROM FUNDINGAMOUNTS')
     data = cx.fetchall()
     return data
 
 
-def get_record(funding_line_id, step, fiscal_year):
-    cx.execute('SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID ="{}" AND STEP ="{}" AND FISCALYEAR ="{}"'.format(
-        funding_line_id, step, fiscal_year))
+def get_record(funding_line_id, step='', fiscal_year=''):
+    cx.execute("SELECT * FROM FUNDINGAMOUNTS WHERE KEY ={}".format(
+        funding_line_id))
     data = cx.fetchall()
     return data
 
 
 def update_record(new_amount, new_notes, funding_line_id, step, fiscal_year):
-    cx.execute("UPDATE FUNDINGAMOUNTS SET AMOUNT =?, NOTES=? WHERE FUNDINGLINEID=? and STEP=? and FISCALYEAR=? ",
-               (new_amount, new_notes, funding_line_id, step, fiscal_year))
+    cx.execute("UPDATE FUNDINGAMOUNTS SET AMOUNT ={}, NOTES2='{}' WHERE FUNDINGLINEID='{}' and STEP='{}' and FISCALYEAR='{}' ".format(
+        new_amount, new_notes, funding_line_id, step, fiscal_year))
     connect.commit()
     data = cx.fetchall()
     return data
 
 
 def delete_record(key):
-    cx.execute('DELETE FROM FUNDINGAMOUNTS WHERE KEY ="{}"'.format(key))
+    cx.execute("DELETE FROM FUNDINGAMOUNTS WHERE KEY ={}".format(key))
     connect.commit()

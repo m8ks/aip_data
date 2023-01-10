@@ -20,7 +20,7 @@ def main():
 
     if choice == 'Create':
         st.subheader('Add record')
-        col1, col2 = st.beta_columns(2)
+        col1, col2 = st.columns(2)
 
         with col1:
             note = st.text_area('Funding amounts note')
@@ -41,13 +41,13 @@ def main():
 
     elif choice == 'Read':
         st.subheader('View records')
-        with st.beta_expander('View all records'):
+        with st.expander('View all records'):
             result = view_data()
             st.write(result)
-            clean_df = pd.DataFrame(result, columns=['ID','FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
-        # with st.beta_expander("STEP"):
+        # with st.expander("STEP"):
         #    task_df = clean_df['STEP'].value_counts().to_frame()
         #    # st.dataframe(task_df)
         #    task_df = task_df.reset_index()
@@ -59,14 +59,14 @@ def main():
 
     elif choice == 'Update':
         st.subheader('Update record')
-        with st.beta_expander('Current record'):
+        with st.expander('Current record'):
             result = view_data()
             # st.write(result)
             clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
             st.dataframe(clean_df)
 
         list_of_records = [i[0] for i in view_all_ids()]
-        selected_id = st.selectbox('Funding Line ID', list_of_records)
+        selected_id = st.selectbox('Key', list_of_records)
         return_id = get_record(selected_id)
         # st.write(task_result)
 
@@ -78,7 +78,7 @@ def main():
             amount = return_id[0][4]
             notes = return_id[0][5]
 
-            col1, col2 = st.beta_columns(2)
+            col1, col2 = st.columns(2)
 
             with col1:
                 new_note = st.text_area('New note', notes)
@@ -93,7 +93,7 @@ def main():
                 update_record(new_amount, new_note, funding_line_id, fiscal_year, step)
                 st.success('Updated ::{} ::to FUNDINGAMOUNTS table {}'.format(amount, new_amount))
 
-            with st.beta_expander('View updated record'):
+            with st.expander('View updated record'):
                 result = view_data()
                 # st.write(result)
                 clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
@@ -102,7 +102,7 @@ def main():
 
     elif choice == 'Delete':
         st.subheader('Delete record')
-        with st.beta_expander('View data'):
+        with st.expander('View data'):
             result = view_data()
             # st.write(result)
             clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
@@ -114,7 +114,7 @@ def main():
             delete_record(delete_by_id)
             st.warning('Deleted: \'{}\''.format(delete_by_id))
 
-        with st.beta_expander('Updated record'):
+        with st.expander('Updated record'):
             result = view_data()
             # st.write(result)
             clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
