@@ -3,7 +3,7 @@ import pandas as pd
 from aip_db import *
 import streamlit.components.v1 as stc
 
-HTML_BANNER = ("\n"
+HTML_BANNER = ("    \n"
                "    <div style=\"background-color:#464e5f;padding:10px;border-radius:10px\">\n"
                "    <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
                "    <h1 style=\"color:white;text-align:center;\">AIP.ORG datа management demo</h1>\n"
