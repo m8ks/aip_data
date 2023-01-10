@@ -55,7 +55,7 @@ def view_all_ids():
 
 
 def get_record(funding_line_id, step='', fiscal_year=''):
-    cx.execute("SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID ='{}'".format(
+    cx.execute("SELECT * FROM FUNDINGAMOUNTS WHERE KEY ={}".format(
         funding_line_id))
     data = cx.fetchall()
     return data
