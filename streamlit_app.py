@@ -3,7 +3,7 @@ import pandas as pd
 from aip_db import *
 import streamlit.components.v1 as stc
 
-HTML_BANNER = ("\n"
+HTML_BANNER = ("    \n"
                "    <div style=\"background-color:#0B074E;padding:10px;border-radius:10px\">\n"
                "    <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
                "    <h1 style=\"color:white;text-align:center;\">Datа management demo</h1>\n"
@@ -106,7 +106,7 @@ def main():
         with st.beta_expander('View data'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
         unique_list = [i[0] for i in view_all_ids()]
@@ -118,7 +118,7 @@ def main():
         with st.beta_expander('Updated record'):
             result = view_data()
             # st.write(result)
-            clean_df = pd.DataFrame(result, columns=['FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT'])
+            clean_df = pd.DataFrame(result, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'UNDEFINED'])
             st.dataframe(clean_df)
 
     else:

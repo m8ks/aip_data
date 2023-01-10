@@ -54,14 +54,15 @@ def view_all_ids():
     return data
 
 
-def get_record(funding_line_id, step, fiscal_year):
-    cx.execute('SELECT * FROM FUNDINGAMOUNTS WHERE FUNDINGLINEID ="{}" AND STEP ="{}" AND FISCALYEAR ="{}"'.format(funding_line_id, step, fiscal_year))
+def get_record(key):
+    cx.execute('SELECT KEY, FUNDINGLINEID, FISCALYEAR, STEP, AMOUNT, NOTES2 FROM FUNDINGAMOUNTS WHERE KEY ={}'.format(key))
+    #FUNDINGLINEID ="{}" AND STEP ="{}" AND FISCALYEAR ="{}"'.format(funding_line_id, step, fiscal_year))
     data = cx.fetchall()
     return data
 
 
 def update_record(new_amount, new_notes, funding_line_id, step, fiscal_year):
-    cx.execute("UPDATE FUNDINGAMOUNTS SET AMOUNT =?, NOTES=? WHERE FUNDINGLINEID=? and STEP=? and FISCALYEAR=? ",
+    cx.execute("UPDATE FUNDINGAMOUNTS SET AMOUNT ={}, NOTES='{}' WHERE FUNDINGLINEID='{}' and STEP='{}' and FISCALYEAR='{}'",
                (new_amount, new_notes, funding_line_id, step, fiscal_year))
     connect.commit()
     data = cx.fetchall()
@@ -69,5 +70,5 @@ def update_record(new_amount, new_notes, funding_line_id, step, fiscal_year):
 
 
 def delete_record(key):
-    cx.execute('DELETE FROM FUNDINGAMOUNTS WHERE KEY ="{}"'.format(key))
+    cx.execute('DELETE FROM FUNDINGAMOUNTS WHERE KEY ={}'.format(key))
     connect.commit()
