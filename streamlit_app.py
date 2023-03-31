@@ -3,6 +3,9 @@ import pandas as pd
 from aip_db import *
 import streamlit.components.v1 as stc
 from st_aggrid import AgGrid, DataReturnMode, GridUpdateMode, GridOptionsBuilder, JsCode
+import streamlit_authenticator as stauth
+from st_on_hover_tabs import on_hover_tabs
+import numpy as np
 
 # from snowflake.snowpark import Session
 # import json
@@ -11,349 +14,422 @@ from st_aggrid import AgGrid, DataReturnMode, GridUpdateMode, GridOptionsBuilder
 HTML_BANNER = ("    \n"
                "    <div style=\"background-color:#0B074E;padding:10px;border-radius:10px\">\n"
                "    <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
-               "    <h1 style=\"color:white;text-align:center;\">Datа management demo</h1>\n"
+               "    <h1 style=\"color:white;text-align:center;\">Snowflake Datа Management</h1>\n"
                "    <p style=\"color:white;text-align:center;\">Built with Streamlit</p>\n"
                "    </div>\n"
                "    ")
 
 
 def main():
+    st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
+
+    with st.sidebar:
+        tabs = on_hover_tabs(
+            tabName=['Login', 'Organization', 'Funding Line', 'Edit Line', 'Funding Amount', 'Bulk download',
+                     'Bulk upload',
+                     # 'Add/Edit',
+                     'About'],
+            iconName=['person', 'dashboard', 'money', '', 'money', '', '',
+                      # '',
+                      'person'],
+            styles={'navtab': {'background-color': '#111',
+                               'color': '#818181',
+                               'font-size': '16px',
+                               'transition': '.3s',
+                               'white-space': 'nowrap',
+                               'text-transform': 'uppercase'},
+                    'tabOptionsStyle': {':hover :hover': {'color': 'white',
+                                                          'cursor': 'pointer'}},
+                    'iconStyle': {'position': 'fixed',
+                                  'left': '7.5px',
+                                  'text-align': 'left'},
+                    'tabStyle': {'list-style-type': 'none',
+                                 'margin-bottom': '30px',
+                                 'padding-left': '30px'}},
+            key="1")
+
     stc.html(HTML_BANNER)
 
-    choice2 = st.sidebar.selectbox('Table name',
-                                   ['AGENCYINFO', 'CHANGEOVERPRIORYEAR', 'CHARTLABELS', 'FUNDINGAMOUNTS', 'PRIORYEAR', 'WEBTABLEROWLABELS'],
-                                   index=3)
+    # choice2 = st.sidebar.selectbox('Table name',
+    #                                ['AGENCYINFO', 'CHANGEOVERPRIORYEAR', 'CHARTLABELS', 'FUNDINGAMOUNTS', 'PRIORYEAR', 'WEBTABLEROWLABELS'],
+    #                                index=3)
 
-    menu = ['Bulk upload', 'Bulk update', 'Bulk delete', 'View all', 'Create record', 'Update record', 'About']
-    choice = st.sidebar.selectbox('Action', menu)
+    # menu = ['Bulk upload', 'Bulk update', 'Bulk delete', 'View all', 'Create record', 'Update record', 'About']
+    # choice = st.sidebar.selectbox('Action', menu)
     # create_table()
 
-    if choice == 'Bulk upload':
+    if tabs == 'Login':
+        st.subheader('🧑‍💻️ Snowflake authorization')
+
+        # with open('../config.yaml') as file:
+        #     config = yaml.load(file, Loader=SafeLoader)
+
+        # authenticator = stauth.Authenticate(
+        #     config['credentials'],
+        #     config['cookie']['name'],
+        #     config['cookie']['key'],
+        #     config['cookie']['expiry_days'],
+        #     config['preauthorized']
+        # )
+
+        userid = st.text_input('Username').lower()
+        password = st.text_input('Password', type='password')
+
+        if st.button('Login'):
+            if userid == '' or password == '':
+                st.warning('Please provide account and password to login.')
+            else:
+                st.success("You was successfully logged in.")
+
+    elif tabs == 'Organization':
+        st.subheader('Organization list')
+
+        df = view_data_organization()
+        df = pd.DataFrame(df,
+                          columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
+
+        # df = df.set_index('ORG_ID')
+        df_selected = st.multiselect("Select ORG_ID:", [str(i[0]) for i in view_all_org_ids()])  # set(df.index))
+        df_selected = view_data_organization(df_selected)  # df.loc[df_selected]
+
+        # if not df_selected.empty:
+        #     st.dataframe(df_selected, use_container_width=True)
+        # else:
+        df_selected = pd.DataFrame(df_selected,
+                                   columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
+        st.dataframe(df_selected,
+                     use_container_width=True)
+
+        st.subheader('Add new record')
+        col1, col2 = st.columns(2)
+
+        with col1:
+            org = st.text_input('ORG')
+            list_of_records = ['<NA>'] + [str(i[0]) for i in view_all_org_ids()]
+            parent = st.selectbox('PARENT', list_of_records, index=0)
+            if parent == '<NA>':
+                org_id = st.text_input('ORG_ID', disabled=True, value=org.upper())
+            else:
+                org_id = st.text_input('ORG_ID', disabled=True, value=parent + "-" + org.upper())
+
+        with col2:
+            if parent == '<NA>':
+                parent_level = [-1]
+            else:
+                parent_level = get_parent_level(parent)
+            parent_level = pd.DataFrame(parent_level)
+            level = st.text_input('LEVEL', int(parent_level[0].values + 1), disabled=True)
+            name = st.text_input('NAME', 'Dummy name')
+
+        if st.button('Submit'):
+            df = view_all_org_ids()
+            df = pd.DataFrame(df)
+
+            if org_id in set(df.values[:, 0]):
+                st.error("ORGANIZATION is already exists: ORG_ID = '{}' ".format(org_id))
+            else:
+                insert_organization(org.upper(), parent, org_id, int(level), name)
+                st.success("New record added to ORGANIZATION: ORG_ID = '{}'".format(org_id))
+
+    elif tabs == 'Funding Line':
+        st.subheader('Funding Line list')
+
+        df = view_data_funding_line()
+        df = pd.DataFrame(df,
+                          columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+        # st.info(index)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+        with col2:
+            df_name = st.multiselect("Select NAME:", set(df['NAME']))
+
+        df_selected = view_data_funding_line(df_org, df_name)
+        df_selected = pd.DataFrame(df_selected,
+                                   columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+        st.dataframe(df_selected,
+                     use_container_width=True)
+
+        st.subheader('Add new record')
+        col1, col2 = st.columns(2)
+
+        with col1:
+            last_row = get_last_row_funding_line()
+            last_row = pd.DataFrame(last_row)
+            # st.info(last_row[0].values)
+            id = st.text_input('ID', int(last_row[0].values + 1), disabled=True)
+            list_of_records = [i[0] for i in view_all_org_ids()]
+            org_id = st.selectbox('ORG_ID', list_of_records)
+            name = st.text_input('NAME', 'Dummy name')
+
+        with col2:
+            funding_type = st.text_input('FUNDING_TYPE', 'Dummy funding type')
+            version = st.number_input('VERSION', 0)
+            top_line = st.selectbox('TOP_LINE', ('FALSE', 'TRUE'))
+            note = st.text_area('NOTE', 'Dummy note')
+
+        if st.button('Submit'):
+            df = exists_funding_line(org_id, name, version)
+            df = pd.DataFrame(df)
+
+            if not df.empty:
+                st.error("FUNDING LINE is already exists: ORG_ID = '{}', NAME = '{}', VERSION = {} ".format(
+                    org_id, name, version))
+            else:
+                insert_funding_line(int(last_row[0].values + 1), org_id, name, funding_type, version, top_line, note)
+                st.success("New record added to FUNDING LINE: ORG_ID = '{}', NAME = '{}', VERSION = {}".format(
+                    org_id, name, version))
+
+    elif tabs == 'Edit Line':
+        st.subheader('Edit Funding Line')
+
+        df = view_data_funding_line()
+        df = pd.DataFrame(df,
+                          columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+        # st.dataframe(df,
+        #              use_container_width=True)
+
+        df_line_id = st.selectbox("Select ID:", set(df['ID']))
+        df_selected = view_data_funding_line(None, None, df_line_id)
+        df_selected = pd.DataFrame(df_selected,
+                                   columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+        st.dataframe(df_selected, use_container_width=True)
+
+        st.subheader('Edit record')
+        col1, col2 = st.columns(2)
+
+        with col1:
+            id = st.text_input('ID', df_selected['ID'][0], disabled=True)
+            list_of_records = [i[0] for i in view_all_org_ids()]
+
+            # st.write(df_selected['ORG_ID'][0].index)
+
+            org_id = st.selectbox('ORG_ID', list_of_records, index=0)
+            name = st.text_input('NAME', df_selected['NAME'][0])
+
+        with col2:
+            funding_type = st.text_input('FUNDING_TYPE', df_selected['FUNDING_TYPE'][0])
+            version = st.number_input('VERSION', df_selected['VERSION'][0])
+            top_line = st.selectbox('TOP_LINE', ('FALSE', 'TRUE'), bool(df_selected['TOP_LINE'][0]))
+            note = st.text_area('NOTE', df_selected['NOTE'][0])
+
+        if st.button('Submit'):
+            update_funding_line(id, org_id, name, funding_type, version, top_line, note)
+            st.success("Existing FUNDING LINE record was updated: "
+                       "ID = {}, ORG_ID = '{}', NAME = '{}', FUNDING_TYPE = '{}', VERSION = {}, TOP_LINE = {}, "
+                       "NOTE = '{}' ".format(
+                id, org_id, name, funding_type, version, top_line, note))
+
+    elif tabs == 'Funding Amount':
+        st.subheader('Funding Amount list')
+
+        df = view_data_funding_amount()
+        df = pd.DataFrame(df,
+                          columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                   'SOURCE_URL',
+                                   'NOTE', 'ORG_ID', 'NAME'])
+
+        col1, col2 = st.columns(2)
+        with col1:
+            df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+            df_name = st.multiselect("Select NAME:", set(df['NAME']))
+        with col2:
+            df_year = st.multiselect("Select FISCAL_YEAR:", set(df['FISCAL_YEAR']))
+            df_step = st.multiselect("Select STEP:", set(df['STEP']))
+
+        df_selected = view_data_funding_amount(df_org, df_name, df_year, df_step)
+        df_selected = pd.DataFrame(df_selected,
+                                   columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                            'SOURCE_URL',
+                                            'NOTE', 'ORG_ID', 'NAME'])
+        st.dataframe(df_selected,
+                     use_container_width=True)
+
+        st.subheader('Add new record')
+        col1, col2 = st.columns(2)
+
+        with col1:
+            list_of_records = [i[0] for i in view_all_funding_ids()]
+            funding_line_id = st.selectbox('FUNDING_LINE_ID', list_of_records)
+            fiscal_year = st.selectbox('FISCAL_YEAR', ('2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017',
+                                                       '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025',
+                                                       '2026', '2027', '2028', '2029', '2030', '2031', '2032', '2033',
+                                                       '2034', '2035', '2036', '2037', '2038', '2039', '2040', '2041',
+                                                       '2042', '2043', '2044', '2045', '2046', '2047', '2048', '2049',
+                                                       '2050', '2051', '2052', '2053', '2054', '2055', '2056', '2057',
+                                                       '2058', '2059', '2060', '2061', '2062', '2063', '2064', '2065',
+                                                       '2066', '2067', '2068', '2069', '2070', '2071', '2072', '2073',
+                                                       '2074', '2075', '2076', '2077', '2078', '2079', '2080', '2081',
+                                                       '2082', '2083', '2084', '2085', '2086', '2087', '2088', '2089',
+                                                       '2090', '2091', '2092', '2093', '2094', '2095', '2096', '2097',
+                                                       '2098', '2099'))
+            step = st.selectbox('STEP', ('Request', 'House', 'Senate', 'Enacted'))
+
+        with col2:
+            amount = st.number_input('AMOUNT')
+            amount_type = st.text_input('AMOUNT_TYPE', 'Dummy amount type')
+            source_url = st.text_input('SOURCE_URL', 'Dummy source url')
+            note = st.text_area('NOTE', 'Dummy note')
+
+        if st.button('Submit'):
+            df = exists_funding_amount(funding_line_id, int(fiscal_year), step, amount_type)
+            df = pd.DataFrame(df)
+
+            if not df.empty:
+                st.error("FUNDING AMOUNT is already exists: FUNDING_LINE_ID = '{}', FISCAL_YEAR = {}, STEP = '{}', "
+                         "AMOUNT_TYPE = '{}' ".format(
+                    funding_line_id, int(fiscal_year), step, amount_type))
+            else:
+                insert_funding_amount(funding_line_id, int(fiscal_year), step, amount, amount_type, source_url, note)
+                st.success("New record added to FUNDING AMOUNT: "
+                           "FUNDING_LINE_ID = '{}', "
+                           "FISCAL_YEAR = {}, "
+                           "STEP = '{}', "
+                           "AMOUNT_TYPE = '{}'".format(
+                    funding_line_id, fiscal_year, step, amount_type))
+
+    elif tabs == 'Bulk download':
+        st.subheader('Bulk download')
+
+        df = view_data_funding_amount()
+        df = pd.DataFrame(df,
+                          columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                   'SOURCE_URL',
+                                   'NOTE', 'ORG_ID', 'NAME'])
+
+        col1, col2 = st.columns(2)
+        with col1:
+            df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+            df_name = st.multiselect("Select NAME:", set(df['NAME']))
+        with col2:
+            df_year = st.multiselect("Select FISCAL_YEAR:", set(df['FISCAL_YEAR']))
+            df_step = st.multiselect("Select STEP:", set(df['STEP']))
+
+        df_selected = view_data_funding_amount(df_org, df_name, df_year, df_step)
+        df_selected = pd.DataFrame(df_selected,
+                                   columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                            'SOURCE_URL',
+                                            'NOTE', 'ORG_ID', 'NAME'])
+        st.dataframe(df_selected,
+                     use_container_width=True)
+
+        @st.experimental_memo
+        def convert_df(df):
+            return df.to_csv(index=False).encode('utf-8')
+
+        csv = convert_df(df_selected)
+
+        st.download_button(
+            "Press to Download",
+            csv,
+            "funding_amount.csv",
+            "text/csv",
+            key='download-csv'
+        )
+        st.success('The file successfully downloaded.')
+
+    elif tabs == 'Bulk upload':
         st.subheader('Bulk upload')
 
         uploaded_file = st.file_uploader('Upload CSV', type='.csv')
 
-        use_example_file = st.checkbox(
-            'Use example file', False, help='Use in-built example file to demo the app'
-        )
-
+        # use_example_file = st.checkbox('Use example file', False, help='Use in-built example file to demo the app')
         # If CSV is not uploaded and checkbox is filled, use values from the example file
         # and pass them down to the next if block
-        if use_example_file:
-            uploaded_file = 'demo_file.csv'
+        # if use_example_file:
+        #     uploaded_file = 'demo_file.csv'
 
         if uploaded_file:
-            columns = ['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES']
             csv_df = pd.read_csv(uploaded_file,
                                  delimiter=';',
                                  header=None,
-                                 names=columns,
+                                 names=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL',
+                                        'NOTE', 'ORG_ID', 'NAME'],
                                  skiprows=1)
 
             with st.expander('File data preview'):
-                # st.dataframe(csv_df.head(9999))
-                # st.write('')
-                # st.info(len(df))
                 csv_df = pd.DataFrame(csv_df,
-                                      columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
+                                      columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                               'SOURCE_URL', 'NOTE'])
 
-                gb = GridOptionsBuilder.from_dataframe(csv_df)
-                gb.configure_pagination()
-                # gb.configure_side_bar()
-                gb.configure_default_column(editable=False)
-
-                grid_options = gb.build()
-
-                csv_ag = AgGrid(csv_df,
-                                gridOptions=grid_options,
-                                enable_enterprise_modules=True,
-                                fit_columns_on_grid_load=True,
-                                allow_unsafe_jscode=True,
-                                reload_data=False,
-                                height=200)
+                st.dataframe(csv_df)
 
             # type(uploaded_file) == str, means the example file was used
-            name = (
-                'demo_file.csv' if isinstance(uploaded_file, str) else uploaded_file.name
-            )
+            # name = ('demo_file.csv' if isinstance(uploaded_file, str) else uploaded_file.name)
+
+            # st.write('')
+            # st.write('### Review existing records in the Snowflake database')
+            # st.write('')
+
+            # snow_df = get_record_list(csv_df['FUNDING_LINE_ID'])
+            # snow_df = pd.DataFrame(snow_df,
+            #                        columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE'])
 
             st.write('')
-            st.write('### Review existing records in the Snowflake database')
-            st.write('')
-
-            snow_df = get_record_list(csv_df['ID'])
-            snow_df = pd.DataFrame(snow_df,
-                                   columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
-
-            gb = GridOptionsBuilder.from_dataframe(snow_df)
-
-            gb.configure_pagination()
-            gb.configure_side_bar()
-            gb.configure_selection(header_checkbox=True, selection_mode="multiple", use_checkbox=True)
-            gb.configure_default_column(editable=False)
-            gb.configure_column('AMOUNT', cellStyle={'color': 'red'})
-            gb.configure_column('Action',
-                                cellEditor='agRichSelectCellEditor',
-                                cellEditorParams={'values': ['Update', 'Skip']},
-                                cellEditorPopup=True)
-
-            grid_options = gb.build()
-
-            js = JsCode("""
-                            function(e) {
-                                let api = e.api;
-                                let rowIndex = e.rowIndex;
-                                let col = e.column.colId;
-
-                                let rowNode = api.getDisplayedRowAtIndex(rowIndex);
-                                api.flashCells({
-                                  rowNodes: [rowNode],
-                                  columns: [col],
-                                  flashDelay: 10000000000
-                                });
-
-                            };
-                            """)
-
-            gb.configure_grid_options(onCellValueChanged=js)
-
-            snow_ag = AgGrid(snow_df,
-                             gridOptions=grid_options,
-                             enable_enterprise_modules=True,
-                             fit_columns_on_grid_load=True,
-                             allow_unsafe_jscode=True,
-                             reload_data=False,
-                             height=200)
-
-            st.write('')
-            st.write('### Bulk upload from ', name)
+            st.write('### Upload from ', uploaded_file.name)
             st.write('')
 
             if st.button('Submit'):
 
-                selected = snow_ag['selected_rows']
-                selected_df = pd.DataFrame(selected)
-
-                # selected_indices = [i['_selectedRowNodeInfo']
-                #                     ['nodeRowIndex'] for i in selected]
-                # st.info(selected_indices)
-
                 if not csv_df.empty:
                     for row in csv_df.itertuples():
                         # st.info(row)
-
-                        key = row.ID
-                        funding_line_id = row.FUNDINGLINEID
-                        fiscal_year = row.FISCALYEAR
+                        funding_line_id = row.FUNDING_LINE_ID
+                        fiscal_year = row.FISCAL_YEAR
                         step = row.STEP
                         amount = row.AMOUNT
-                        notes = row.NOTES
+                        amount_type = row.AMOUNT_TYPE
+                        source_url = row.SOURCE_URL
+                        note = row.NOTE
 
-                        # if selected:
-                            # st.info(row[1])
-                            # st.info(selected_df['ID'].values[0])
-                            # st.info(csv_ag['data'][snow_df['ID'] == key])
+                        df_amount = exists_funding_amount(funding_line_id, int(fiscal_year), step, amount_type)
+                        df_amount = pd.DataFrame(df_amount)
 
-                        if selected and row.ID in selected_df['ID'].values:
-                            update_record(amount, notes, key)
-                            st.warning("Updated: {} {} {} {} {} {}.".format(
-                                key, funding_line_id, fiscal_year, step, amount, notes))
-
-                        elif row.ID in snow_df['ID'].values:
-                            st.error("Skipped: {} {} {} {} {} {}.".format(
-                                key, funding_line_id, fiscal_year, step,
-                                snow_ag['data'][snow_df['ID'] == key].values[0][4],
-                                snow_ag['data'][snow_df['ID'] == key].values[0][5]))
-
+                        if not df_amount.empty:
+                            update_funding_amount(funding_line_id, int(fiscal_year), step, amount_type,
+                                                  int(fiscal_year), step, amount,
+                                                  amount_type, source_url, note)
+                            st.warning("Existing FUNDING AMOUNT record was updated: "
+                                       "FUNDING_LINE_ID = '{}', FISCAL_YEAR = {}, STEP = '{}', AMOUNT_TYPE = '{}' ".format(
+                                funding_line_id, int(fiscal_year), step, amount_type))
                         else:
-                            insert_record(key, funding_line_id, fiscal_year, step, amount, notes)
-                            st.success("Inserted: {}, {}, {}, {}, {}, {}.".format(
-                                key, funding_line_id, fiscal_year, step, amount, notes))
+                            insert_funding_amount(funding_line_id, int(fiscal_year), step, amount, amount_type,
+                                                  source_url, note)
+                            st.success("New record added to FUNDING AMOUNT: "
+                                       "FUNDING_LINE_ID = '{}', "
+                                       "FISCAL_YEAR = {}, "
+                                       "STEP = '{}', "
+                                       "AMOUNT_TYPE = '{}'".format(
+                                funding_line_id, fiscal_year, step, amount_type))
 
-    elif choice == 'Bulk update':
-        st.subheader('Bulk update')
+    elif tabs == 'Add/Edit':
+        st.subheader('Add/Edit a record')
 
-        df = view_data()
-        df = pd.DataFrame(df,
-                          columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
+        df = view_data_funding_amount()
+        df = pd.DataFrame(df, columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL',
+                                       'NOTE'])
 
-        gb = GridOptionsBuilder.from_dataframe(df)
+        st.dataframe(df, use_container_width=True)
 
-        gb.configure_pagination()
-        gb.configure_side_bar()
-        gb.configure_default_column(editable=False)
-        gb.configure_selection(header_checkbox=True, selection_mode="multiple", use_checkbox=True)
-        gb.configure_column('AMOUNT', editable=True)
-        gb.configure_column('NOTES', editable=True)
-
-        grid_options = gb.build()
-
-        js = JsCode("""
-                        function(e) {
-                            let api = e.api;
-                            let rowIndex = e.rowIndex;
-                            let col = e.column.colId;
-
-                            let rowNode = api.getDisplayedRowAtIndex(rowIndex);
-                            api.flashCells({
-                              rowNodes: [rowNode],
-                              columns: [col],
-                              flashDelay: 10000000000
-                            });
-
-                        };
-                        """)
-
-        gb.configure_grid_options(onCellValueChanged=js)
-
-        ag = AgGrid(df,
-                    gridOptions=grid_options,
-                    enable_enterprise_modules=True,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    reload_data=False,
-                    height=400)
-
-        if st.button('Update'):
-            selected = ag['selected_rows']
-            selected_df = pd.DataFrame(selected, columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT',
-                                                          'NOTES'])  # .apply(pd.to_numeric, errors='coerce')
-
-            if not selected_df.empty:
-                for row in selected_df.itertuples():
-                    key = row.ID
-                    funding_line_id = row.FUNDINGLINEID
-                    fiscal_year = row.FISCALYEAR
-                    step = row.STEP
-                    amount = row.AMOUNT
-                    notes = row.NOTES
-                    update_record(amount, notes, key)
-                    st.success("Updated: {}, {}, {}, {}, {}, {}.".format(
-                        key, funding_line_id, fiscal_year, step, amount, notes))
-
-                # st.subheader("Returned Data")
-                # st.dataframe(selected_df)
-
-            else:
-                st.warning('Please select at least one record for update')
-
-    elif choice == 'Create record':
-        st.subheader('Create record')
         col1, col2 = st.columns(2)
 
         with col1:
-            note = st.text_area('Funding amounts note')
+            list_of_records = [i[0] for i in view_all_funding_ids()]
+            funding_line_id = st.selectbox('FUNDING_LINE_ID', list_of_records)
+            fiscal_year = st.number_input('FISCAL_YEAR', format='%i')
+            step = st.text_input('STEP')
 
         with col2:
-            key = st.number_input('Key', get_last_id()[0][0])
-            funding_line_id = st.text_input('Funding Line ID', 'DOE-OS')
-            fiscal_year = st.number_input('Fiscal Year', 2024)
-            step = st.selectbox('Step', ['Enacted', 'Actual', 'Request',
-                                         'Request Plus Mandatory', 'House', 'Senate', 'Request w Add',
-                                         'House Stimulus'])
-            amount = st.number_input('Amount')
+            amount = st.number_input('AMOUNT')
+            amount_type = st.text_input('AMOUNT_TYPE')
+            source_url = st.text_input('SOURCE_URL')
+            note = st.text_area('NOTE')
 
         if st.button('Submit'):
-            insert_record(key, funding_line_id, fiscal_year, step, amount, note)
-            st.success("Added: {}, {}, {}, {}, {}, {}.".format(key, funding_line_id, fiscal_year, step, amount, note))
-
-    elif choice == 'View all':
-        st.subheader('View all records')
-        result = view_data()
-        df = pd.DataFrame(result,
-                          columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
-
-        gb = GridOptionsBuilder.from_dataframe(df)
-        gb.configure_pagination()
-        gb.configure_side_bar()
-        gb.configure_default_column(editable=False)
-
-        grid_options = gb.build()
-
-        ag = AgGrid(df,
-                    height=400,
-                    gridOptions=grid_options,
-                    enable_enterprise_modules=True,
-                    fit_columns_on_grid_load=True)
-
-    elif choice == 'Update record':
-        st.subheader('Update record')
-        with st.expander('Current record'):
-            result = view_data()
-            clean_df = pd.DataFrame(result,
-                                    columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
-            st.dataframe(clean_df)
-
-        list_of_records = [i[0] for i in view_all_ids()]
-        selected_id = st.selectbox('KEY', list_of_records)
-        return_id = get_record(selected_id)
-
-        if return_id:
-            key = return_id[0][0]
-            # funding_line_id = return_id[0][1]
-            # fiscal_year = return_id[0][2]
-            # step = return_id[0][3]
-            amount = return_id[0][4]
-            notes = return_id[0][5]
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                new_note = st.text_area('New note', notes)
-
-            with col2:
-                # new_step = st.selectbox(step, ["Enacted", "Actual", "Request",
-                #                                "Request Plus Mandatory", "House", "Senate", "Request w Add",
-                #                                "House Stimulus"])
-                new_amount = st.number_input('New amount', amount)
-
-            if st.button('Update record'):
-                update_record(new_amount, new_note, key)  # funding_line_id, fiscal_year, step)
-                st.success("Updated: {}, '{}'".format(new_amount, new_note))
-
-            with st.expander('View updated record'):
-                result = get_record(key)
-                clean_df = pd.DataFrame(result,
-                                        columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
-                st.dataframe(clean_df)
-
-    elif choice == 'Bulk delete':
-        st.subheader('Delete record')
-        df = pd.DataFrame(view_data(),
-                          columns=['ID', 'FUNDINGLINEID', 'FISCALYEAR', 'STEP', 'AMOUNT', 'NOTES'])
-
-        gb = GridOptionsBuilder.from_dataframe(df)
-        gb.configure_pagination()
-        gb.configure_side_bar()
-        gb.configure_default_column(editable=False)
-        gb.configure_selection(header_checkbox=True, selection_mode="multiple", use_checkbox=True)
-
-        grid_options = gb.build()
-
-        ag = AgGrid(df,
-                    gridOptions=grid_options,
-                    enable_enterprise_modules=True,
-                    fit_columns_on_grid_load=True,
-                    height=400)
-
-        if st.button('Delete'):
-            selected = ag['selected_rows']
-            selected_df = pd.DataFrame(selected)
-
-            if not selected_df.empty:
-                for row in selected_df.itertuples():
-                    key = row.ID
-                    funding_line_id = row.FUNDINGLINEID
-                    fiscal_year = row.FISCALYEAR
-                    step = row.STEP
-                    amount = row.AMOUNT
-                    notes = row.NOTES
-                    delete_record(key)
-                    st.success(
-                        "Deleted: {}, {}, {}, {}, {}, {}.".format(key, funding_line_id, fiscal_year, step, amount,
-                                                                  notes))
-            else:
-                st.warning('Please select at least one record for delete')
+            insert_funding_amount(funding_line_id, fiscal_year, step, amount, amount_type, source_url, note)
+            st.success("New record added to FUNDING AMOUNT: '{}'".format(
+                str(funding_line_id) + " " + str(fiscal_year) + " " + step))
 
     else:
         st.subheader('About')

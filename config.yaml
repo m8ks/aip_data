@@ -1,0 +1,13 @@
+cookie:
+  expiry_days: 30
+  key: some_signature_key
+  name: some_cookie_name
+credentials:
+  usernames:
+    CONTRACTORDMITRYT:
+      email: dtaranenko@dprism.com
+      name: Dmitry Taranenko
+      password: 789321QWEqaz
+preauthorized:
+  emails:
+  - dtaranenko@dprism.com

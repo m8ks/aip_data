@@ -19,3 +19,5 @@ urllib3==1.26.13
 snowflake-connector-python==2.9.0
 streamlit~=1.16.0
 pandas~=1.5.2
+PyYAML~=6.0
+hasher~=2.0.1
