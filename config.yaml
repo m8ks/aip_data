@@ -1,13 +1,10 @@
+snowflake:
+  account: lib13297.us-east-1
+  database: FYI_BUDGET_TRACKER
+  schema: TEST  # DEV
+  warehouse: FYI_COMPUTE_WH
+  insecure_mode: True
+  use_openssl_only: False
 cookie:
-  expiry_days: 30
-  key: some_signature_key
-  name: some_cookie_name
-credentials:
-  usernames:
-    CONTRACTORDMITRYT:
-      email: dtaranenko@dprism.com
-      name: Dmitry Taranenko
-      password: 789321QWEqaz
-preauthorized:
-  emails:
-  - dtaranenko@dprism.com
+  expiry_hours: 0
+  expiry_minutes: 30
