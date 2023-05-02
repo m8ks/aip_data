@@ -45,6 +45,11 @@ class Snowflake:
                     org, parent, org_id, level, name))
         self.connect.commit()
 
+    def view_all_org_ids(self):
+        self.cx.execute('SELECT DISTINCT ORG_ID FROM ORGANIZATION ORDER BY ORG_ID')
+        data = self.cx.fetchall()
+        return data
+
     def view_data_organization(self, org_list=None):
         query_str = ''
         if org_list is None or org_list == []:
@@ -60,8 +65,23 @@ class Snowflake:
         data = self.cx.fetchall()
         return data
 
-    def view_all_org_ids(self):
-        self.cx.execute('SELECT DISTINCT ORG_ID FROM ORGANIZATION')
+    def view_child_org_ids(self, org_list=None):
+        child_query = ''
+
+        if org_list is None or org_list == []:
+            self.cx.execute("SELECT * FROM ORGANIZATION ORDER BY ORG_ID")
+        else:
+            for index in org_list:
+                if child_query is '':
+                    # child_query = "B.ORG_ID = '{}' ".format(index)
+                    child_query = "A.ORG_ID LIKE '%{}%' ".format(index)
+                else:
+                    # child_query += "OR B.ORG_ID = '{}' ".format(index)
+                    child_query += "OR A.ORG_ID LIKE '%{}%' ".format(index)
+            self.cx.execute("SELECT A.ORG, A.PARENT, A.ORG_ID, A.LEVEL, A.NAME FROM ORGANIZATION AS A "
+                            # "LEFT JOIN ORGANIZATION AS B ON A.PARENT = B.ORG_ID "
+                            "WHERE {} ORDER BY A.ORG_ID ASC".format(child_query))
+
         data = self.cx.fetchall()
         return data
 
@@ -76,6 +96,48 @@ class Snowflake:
         return data
 
     def view_data_funding_line(self, df_org=None, df_name=None, df_id=None):
+        query_org = ''
+        query_name = ''
+
+        if df_id:
+            self.cx.execute("SELECT * FROM FUNDING_LINE WHERE ID = {} ORDER BY ID".format(df_id))
+        else:
+            if (df_org is None or df_org == []) and (df_name is None or df_name == []):
+                self.cx.execute("SELECT * FROM FUNDING_LINE ORDER BY ID")
+            else:
+                if df_org:
+                    for index in df_org:
+                        if query_org is '':
+                            # query_org = "B.ORG_ID = '{}' ".format(index)
+                            query_org = "A.ORG_ID LIKE '%{}%' ".format(index)
+                        else:
+                            # query_org += "OR B.ORG_ID = '{}' ".format(index)
+                            query_org += "OR A.ORG_ID LIKE '%{}%' ".format(index)
+                    query_org = '(' + query_org + ')'
+                else:
+                    query_org = '(1 = 1)'
+
+                if df_name:
+                    for index in df_name:
+                        if query_name is '':
+                            query_name = "FL.NAME = '{}' ".format(index)
+                        else:
+                            query_name += "OR FL.NAME = '{}' ".format(index)
+                    query_name = '(' + query_name + ')'
+                else:
+                    query_name = '(2 = 2)'
+
+                self.cx.execute(
+                    "SELECT FL.ID, FL.ORG_ID, FL.NAME, FL.FUNDING_TYPE, FL.VERSION, FL.TOP_LINE, FL.NOTE "
+                    "FROM FUNDING_LINE AS FL "
+                    "INNER JOIN ORGANIZATION AS A ON FL.ORG_ID = A.ORG_ID "
+                    # "LEFT JOIN ORGANIZATION AS B ON A.PARENT = B.ORG_ID "
+                    "WHERE {} ORDER BY ID ASC".format(query_org + ' AND ' + query_name))
+
+        data = self.cx.fetchall()
+        return data
+
+    def view_data_funding_line_old(self, df_org=None, df_name=None, df_id=None):
         query_org = ''
         query_name = ''
 
@@ -150,7 +212,7 @@ class Snowflake:
         data = self.cx.fetchall()
         return data
 
-    def view_data_funding_amount(self, df_org=None, df_name=None, df_year=None, df_step=None):
+    def view_data_funding_amount(self, isblank=False, df_org=None, df_name=None, df_year=None, df_step=None):
         query_org = ''
         query_name = ''
         query_year = ''
@@ -158,26 +220,49 @@ class Snowflake:
 
         if (df_org is None or df_org == []) and (df_name is None or df_name == []) and (
                 df_year is None or df_year == []) and (df_step is None or df_step == []):
-            self.cx.execute('SELECT '
-                            'FA.FUNDING_LINE_ID, '
-                            'FA.FISCAL_YEAR, '
-                            'FA.STEP, '
-                            'FA.AMOUNT, '
-                            'FA.AMOUNT_TYPE, '
-                            'FA.SOURCE_URL, '
-                            'FA.NOTE ,'
-                            'FL.ORG_ID ,'
-                            'FL.NAME '
-                            'FROM FUNDING_AMOUNT AS FA '
-                            'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
-                            'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID ')
+            if isblank:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID, '
+                                'FL.NAME, '
+                                'FL.FUNDING_TYPE, '
+                                'FL.VERSION, '
+                                '\'\' AS FISCAL_YEAR, '
+                                '\'\' AS STEP, '
+                                '\'\' AS AMOUNT, '
+                                '\'\' AS AMOUNT_TYPE, '
+                                '\'\' AS SOURCE_URL, '
+                                '\'\' AS NOTE '
+                                'FROM FUNDING_AMOUNT AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'ORDER BY FL.ORG_ID ASC ')
+            else:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FL.FUNDING_TYPE, '
+                                'FL.VERSION, '
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'ORDER BY FL.ORG_ID ASC ')
         else:
             if df_org:
                 for index in df_org:
                     if query_org is '':
-                        query_org = "FL.ORG_ID = '{}' ".format(index)
+                        # query_org = "FL.ORG_ID = '{}' ".format(index)
+                        query_org = "FL.ORG_ID LIKE '%{}%' ".format(index)
                     else:
-                        query_org += "OR FL.ORG_ID = '{}' ".format(index)
+                        # query_org += "OR FL.ORG_ID = '{}' ".format(index)
+                        query_org += "OR FL.ORG_ID LIKE '%{}%' ".format(index)
                 query_org = '(' + query_org + ')'
             else:
                 query_org = '(1 = 1)'
@@ -212,21 +297,44 @@ class Snowflake:
             else:
                 query_step = '(4 = 4)'
 
-            self.cx.execute('SELECT '
-                            'FA.FUNDING_LINE_ID, '
-                            'FA.FISCAL_YEAR, '
-                            'FA.STEP, '
-                            'FA.AMOUNT, '
-                            'FA.AMOUNT_TYPE, '
-                            'FA.SOURCE_URL, '
-                            'FA.NOTE ,'
-                            'FL.ORG_ID ,'
-                            'FL.NAME '
-                            'FROM FUNDING_AMOUNT AS FA '
-                            'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
-                            'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
-                            'WHERE {}'.format(query_org + ' AND ' + query_name + ' AND ' + query_year + ' AND ' + query_step))
-
+            if isblank:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FL.FUNDING_TYPE, '
+                                'FL.VERSION, '
+                                '\'\' AS FISCAL_YEAR, '
+                                '\'\' AS STEP, '
+                                '\'\' AS AMOUNT, '
+                                '\'\' AS AMOUNT_TYPE, '
+                                '\'\' AS SOURCE_URL, '
+                                '\'\' AS NOTE '
+                                'FROM FUNDING_AMOUNT AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'WHERE {} '
+                                'ORDER BY FL.ORG_ID ASC '.format(
+                    query_org + ' AND ' + query_name + ' AND ' + query_year + ' AND ' + query_step))
+            else:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FL.FUNDING_TYPE, '
+                                'FL.VERSION, '
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'WHERE {} '
+                                'ORDER BY FL.ORG_ID ASC '.format(
+                    query_org + ' AND ' + query_name + ' AND ' + query_year + ' AND ' + query_step))
         data = self.cx.fetchall()
         return data
 
@@ -285,3 +393,142 @@ class Snowflake:
 
         data = self.cx.fetchall()
         return data
+
+    def view_data_funding_amount_upload(self, extended=False, df_org=None, df_name=None, df_year=None, df_step=None,
+                                        df_user=None):
+        query_org = ''
+        query_name = ''
+        query_year = ''
+        query_step = ''
+        query_user = ''
+
+        if (df_org is None or df_org == []) and (df_name is None or df_name == []) and (
+                df_year is None or df_year == []) and (df_step is None or df_step == []) and (df_user is None or df_user == []):
+            if extended:
+                self.cx.execute('SELECT '
+                                'FA.USER, '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT_UPLOAD AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID ')
+            else:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '                                
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT_UPLOAD AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID ')
+        else:
+            if df_org:
+                for index in df_org:
+                    if query_org is '':
+                        query_org = "FL.ORG_ID = '{}' ".format(index)
+                    else:
+                        query_org += "OR FL.ORG_ID = '{}' ".format(index)
+                query_org = '(' + query_org + ')'
+            else:
+                query_org = '(1 = 1)'
+
+            if df_name:
+                for index in df_name:
+                    if query_name is '':
+                        query_name = "FL.NAME = '{}' ".format(index)
+                    else:
+                        query_name += "OR FL.NAME = '{}' ".format(index)
+                query_name = '(' + query_name + ')'
+            else:
+                query_name = '(2 = 2)'
+
+            if df_year:
+                for index in df_year:
+                    if query_year is '':
+                        query_year = "FA.FISCAL_YEAR = {} ".format(index)
+                    else:
+                        query_year += "OR FA.FISCAL_YEAR = {} ".format(index)
+                query_year = '(' + query_year + ')'
+            else:
+                query_year = '(3 = 3)'
+
+            if df_step:
+                for index in df_step:
+                    if query_step is '':
+                        query_step = "FA.STEP = '{}' ".format(index)
+                    else:
+                        query_step += "OR FA.STEP = '{}' ".format(index)
+                query_step = '(' + query_step + ')'
+            else:
+                query_step = '(4 = 4)'
+
+            if df_user:
+                for index in df_user:
+                    if query_user is '':
+                        query_user = "FA.USER = '{}' ".format(index)
+                    else:
+                        query_user += "OR FA.USER = '{}' ".format(index)
+                query_user = '(' + query_user + ')'
+            else:
+                query_user = '(5 = 5)'
+
+            if extended:
+                self.cx.execute('SELECT '
+                                'FA.USER, '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT_UPLOAD AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'WHERE {}'.format(
+                    query_org + ' AND ' + query_name + ' AND ' + query_year + ' AND ' + query_step + ' AND ' + query_user))
+            else:
+                self.cx.execute('SELECT '
+                                'FA.FUNDING_LINE_ID, '
+                                'FL.ORG_ID ,'
+                                'FL.NAME, '
+                                'FA.FISCAL_YEAR, '
+                                'FA.STEP, '
+                                'FA.AMOUNT, '
+                                'FA.AMOUNT_TYPE, '
+                                'FA.SOURCE_URL, '
+                                'FA.NOTE '
+                                'FROM FUNDING_AMOUNT_UPLOAD AS FA '
+                                'JOIN FUNDING_LINE AS FL ON FA.FUNDING_LINE_ID = FL.ID '
+                                'JOIN ORGANIZATION AS ORG ON FL.ORG_ID = ORG.ORG_ID '
+                                'WHERE {}'.format(
+                    query_org + ' AND ' + query_name + ' AND ' + query_year + ' AND ' + query_step + ' AND ' + query_user))
+        data = self.cx.fetchall()
+        return data
+
+    def delete_funding_amount_upload(self, userid):
+        self.cx.execute("DELETE FROM FUNDING_AMOUNT_UPLOAD "
+                        "WHERE USER = '{}' ".format(userid))
+        self.connect.commit()
+
+    def insert_funding_amount_upload(self, funding_line_id, fiscal_year, step, amount, amount_type, source_url, note, userid):
+        self.cx.execute(
+            "INSERT INTO FUNDING_AMOUNT_UPLOAD "
+            "(FUNDING_LINE_ID, FISCAL_YEAR, STEP, AMOUNT, AMOUNT_TYPE, SOURCE_URL, NOTE, USER) "
+            "VALUES ({}, {}, '{}', {}, '{}', '{}', '{}', '{}')".format(
+                funding_line_id, fiscal_year, step, amount, amount_type, source_url, note, userid))
+        self.connect.commit()

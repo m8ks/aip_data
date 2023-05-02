@@ -15,7 +15,7 @@ HTML_BANNER = ("    \n"
                "        </h1>\n"
                "        <h2 style=\"color:white;"
                "            text-align:center;"
-               "            font-family:Trebuchet MS, sans-serif;\">version 1.0"
+               "            font-family:Trebuchet MS, sans-serif;\">version 1.1"
                "        </h2>\n"
                "    </div>\n"
                "    ")
@@ -86,10 +86,11 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.text_input('Snowflake account', 'lib13297.us - east - 1', disabled=True)
             st.text_input('Snowflake database', 'FYI_BUDGET_TRACKER', disabled=True)
+            st.text_input('Snowflake account', 'lib13297.us - east - 1', disabled=True)
         with col2:
-            st.text_input('Snowflake schema', 'TEST', disabled=True)
+            # st.text_input('Snowflake schema', 'TEST', disabled=True)
+            st.selectbox('Snowflake schema', ('DEV', 'TEST', 'UAT'), index=1)  # disabled=True)
             st.text_input('Snowflake warehouse', 'FYI_COMPUTE_WH', disabled=True)
 
         if st.button('Login'):
@@ -116,10 +117,8 @@ def main():
         with st.sidebar:
             tabs = on_hover_tabs(
                 tabName=['Organization', 'Funding Line', 'Edit Line', 'Funding Amount', 'Bulk download',
-                         'Bulk upload', 'Logout',
-                         'About'],
-                iconName=['table', 'table', 'edit', 'table', 'download', 'upload',
-                          'logout'],
+                         'Bulk upload', 'Sync all', 'Logout', 'About'],
+                iconName=['table', 'table', 'edit', 'table', 'download', 'upload', 'cloud_sync', 'logout'],
                 default_choice=0,
                 styles={'navtab': {'background-color': '#111',
                                    'color': '#818181',
@@ -140,21 +139,20 @@ def main():
         if tabs == 'Organization':
             st.subheader('🏢 Organization list')
 
-            df = sf.view_data_organization()
-            df = pd.DataFrame(df,
-                              columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
+            sf_org = sf.view_data_organization()
+            df_org = pd.DataFrame(sf_org,
+                                  columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
 
-            # df = df.set_index('ORG_ID')
-            df_selected = st.multiselect("Select ORG_ID:",
-                                         [str(i[0]) for i in sf.view_all_org_ids()])  # set(df.index))
-            df_selected = sf.view_data_organization(df_selected)  # df.loc[df_selected]
+            sf_org_ids = sf.view_all_org_ids()
+            select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf_org_ids])
+            sf_select_org = sf.view_child_org_ids(select_org)
 
             # if not df_selected.empty:
             #     st.dataframe(df_selected, use_container_width=True)
             # else:
-            df_selected = pd.DataFrame(df_selected,
-                                       columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
-            st.dataframe(df_selected,
+            df_select_org = pd.DataFrame(sf_select_org,
+                                         columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
+            st.dataframe(df_select_org,
                          use_container_width=True)
 
             st.subheader('➕ Add new record')
@@ -162,7 +160,7 @@ def main():
 
             with col1:
                 org = st.text_input('ORG')
-                list_of_records = ['<NA>'] + [str(i[0]) for i in sf.view_all_org_ids()]
+                list_of_records = ['<NA>'] + [str(i[0]) for i in sf_org_ids]
                 parent = st.selectbox('PARENT', list_of_records, index=0)
                 if parent == '<NA>':
                     org_id = st.text_input('ORG_ID', disabled=True, value=org.upper())
@@ -179,10 +177,9 @@ def main():
                 name = st.text_input('NAME', 'Dummy name')
 
             if st.button('Submit'):
-                df = sf.view_all_org_ids()
-                df = pd.DataFrame(df)
+                df_org_ids = pd.DataFrame(sf_org_ids)
 
-                if org_id in set(df.values[:, 0]):
+                if org_id in set(df_org_ids.values[:, 0]):
                     st.error("ORGANIZATION is already exists: ORG_ID = '{}' ".format(org_id))
                 else:
                     sf.insert_organization(org.upper(), parent, org_id, int(level), name)
@@ -192,17 +189,20 @@ def main():
         elif tabs == 'Funding Line':
             st.subheader('📁 Funding Line list')
 
-            df = sf.view_data_funding_line()
-            df = pd.DataFrame(df,
-                              columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+            sf_line = sf.view_data_funding_line()
+            df_line = pd.DataFrame(sf_line,
+                                   columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
 
             col1, col2 = st.columns(2)
             with col1:
-                df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+                sf_org_ids = sf.view_all_org_ids()
+                select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf_org_ids])
+                # sf_select_org = sf.view_data_organization(select_org)
+                # df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
             with col2:
-                df_name = st.multiselect("Select NAME:", set(df['NAME']))
+                select_name = st.multiselect("Select NAME:", set(df_line['NAME']))
 
-            df_selected = sf.view_data_funding_line(df_org, df_name)
+            df_selected = sf.view_data_funding_line(df_org=select_org, df_name=select_name)
             df_selected = pd.DataFrame(df_selected,
                                        columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
             st.dataframe(df_selected,
@@ -216,7 +216,7 @@ def main():
                 last_row = pd.DataFrame(last_row)
                 # st.info(last_row[0].values)
                 st.text_input('ID', int(last_row[0].values + 1), disabled=True)
-                list_of_records = [i[0] for i in sf.view_all_org_ids()]
+                list_of_records = [i[0] for i in sf_org_ids]
                 org_id = st.selectbox('ORG_ID', list_of_records)
                 name = st.text_input('NAME', 'Dummy name')
 
@@ -227,15 +227,15 @@ def main():
                 note = st.text_area('NOTE', 'Dummy note')
 
             if st.button('Submit'):
-                df = sf.exists_funding_line(org_id, name, version)
-                df = pd.DataFrame(df)
+                sf_line = sf.exists_funding_line(org_id, name, version)
+                df_line = pd.DataFrame(sf_line)
 
-                if not df.empty:
+                if not df_line.empty:
                     st.error("FUNDING LINE is already exists: ORG_ID = '{}', NAME = '{}', VERSION = {} ".format(
                         org_id, name, version))
                 else:
                     sf.insert_funding_line(int(last_row[0].values + 1), org_id, name, funding_type, version,
-                                                  top_line, note)
+                                           top_line, note)
                     st.success("New record added to FUNDING LINE: ORG_ID = '{}', NAME = '{}', VERSION = {}".format(
                         org_id, name, version))
                     st.experimental_rerun()
@@ -243,25 +243,26 @@ def main():
         elif tabs == 'Edit Line':
             st.subheader('📁 Edit Funding Line')
 
-            df = sf.view_data_funding_line()
-            df = pd.DataFrame(df,
-                              columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
+            # sf_line = sf.view_data_funding_line()
+            df_line = pd.DataFrame(sf.view_data_funding_line(),
+                                   columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
 
             col1, col2 = st.columns(2)
             with col1:
-                df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+                # sf_org_ids = sf.view_all_org_ids()
+                # df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+                select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf.view_all_org_ids()])
             with col2:
-                df_name = st.multiselect("Select NAME:", set(df['NAME']))
+                select_name = st.multiselect("Select NAME:", set(df_line['NAME']))
 
-            df_selected = sf.view_data_funding_line(df_org, df_name)
-            df_selected = pd.DataFrame(df_selected,
+            # sf_selected = sf.view_data_funding_line(select_org, select_name)
+            df_selected = pd.DataFrame(sf.view_data_funding_line(select_org, select_name),
                                        columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
             st.dataframe(df_selected,
                          use_container_width=True)
 
             df_line_id = st.selectbox("Select ID:", set(df_selected['ID']))
-            df_selected = sf.view_data_funding_line(None, None, df_line_id)
-            df_selected = pd.DataFrame(df_selected,
+            df_selected = pd.DataFrame(sf.view_data_funding_line(None, None, df_line_id),
                                        columns=['ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION', 'TOP_LINE', 'NOTE'])
             st.dataframe(df_selected, use_container_width=True)
 
@@ -272,8 +273,8 @@ def main():
                 id = st.text_input('ID', df_selected['ID'][0], disabled=True)
                 list_of_records = [i[0] for i in sf.view_all_org_ids()]
 
-                org_id = st.selectbox('ORG_ID', list_of_records, index=0)
-                # org_id = df_selected['ORG_ID']
+                # org_id = st.selectbox('ORG_ID', list_of_records, index=0)
+                org_id = st.text_input('ORG_ID', df_selected['ORG_ID'][0], disabled=True)
                 name = st.text_input('NAME', df_selected['NAME'][0])
 
             with col2:
@@ -293,25 +294,28 @@ def main():
         elif tabs == 'Funding Amount':
             st.subheader('💵 Funding Amount list')
 
-            df = sf.view_data_funding_amount()
-            df = pd.DataFrame(df,
-                              columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
-                                       'SOURCE_URL',
-                                       'NOTE', 'ORG_ID', 'NAME'])
+            df_amount = pd.DataFrame(sf.view_data_funding_amount(),
+                                     columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                              'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE']
+                                     )
 
             col1, col2 = st.columns(2)
             with col1:
-                df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
-                df_name = st.multiselect("Select NAME:", set(df['NAME']))
+                # df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
+                select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf.view_all_org_ids()])
+                select_name = st.multiselect("Select NAME:", set(df_amount['NAME']))
             with col2:
-                df_year = st.multiselect("Select FISCAL_YEAR:", set(df['FISCAL_YEAR']))
-                df_step = st.multiselect("Select STEP:", set(df['STEP']))
+                select_year = st.multiselect("Select FISCAL_YEAR:", set(df_amount['FISCAL_YEAR']))
+                select_step = st.multiselect("Select STEP:", set(df_amount['STEP']))
 
-            df_selected = sf.view_data_funding_amount(df_org, df_name, df_year, df_step)
+            df_selected = sf.view_data_funding_amount(df_org=select_org,
+                                                      df_name=select_name,
+                                                      df_year=select_year,
+                                                      df_step=select_step)
             df_selected = pd.DataFrame(df_selected,
-                                       columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
-                                                'SOURCE_URL',
-                                                'NOTE', 'ORG_ID', 'NAME'])
+                                       columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                                'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE']
+                                       )
             st.dataframe(df_selected,
                          use_container_width=True)
 
@@ -320,7 +324,8 @@ def main():
 
             with col1:
                 list_of_records = [i[0] for i in sf.view_all_funding_ids()]
-                funding_line_id = st.selectbox('FUNDING_LINE_ID', set(df_selected['FUNDING_LINE_ID']))  # list_of_records)
+                funding_line_id = st.selectbox('FUNDING_LINE_ID',
+                                               set(df_selected['FUNDING_LINE_ID']))  # list_of_records)
                 fiscal_year = st.selectbox('FISCAL_YEAR',
                                            ('2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017',
                                             '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025',
@@ -333,7 +338,8 @@ def main():
                                             '2074', '2075', '2076', '2077', '2078', '2079', '2080', '2081',
                                             '2082', '2083', '2084', '2085', '2086', '2087', '2088', '2089',
                                             '2090', '2091', '2092', '2093', '2094', '2095', '2096', '2097',
-                                            '2098', '2099'))
+                                            '2098', '2099'),
+                                           index=13)
                 step = st.selectbox('STEP', ('Request', 'House', 'Senate', 'Enacted'))
 
             with col2:
@@ -348,49 +354,63 @@ def main():
 
                 if not df.empty:
                     st.error("FUNDING AMOUNT is already exists: FUNDING_LINE_ID = '{}', FISCAL_YEAR = {}, STEP = '{}', "
-                             "AMOUNT_TYPE = '{}' ".format(
-                        funding_line_id, int(fiscal_year), step, amount_type))
+                             "AMOUNT_TYPE = '{}' ".format(funding_line_id, int(fiscal_year), step, amount_type))
                 else:
                     sf.insert_funding_amount(funding_line_id, int(fiscal_year), step, amount, amount_type,
-                                                    source_url, note)
+                                             source_url, note)
                     st.success("New record added to FUNDING AMOUNT: "
                                "FUNDING_LINE_ID = '{}', "
                                "FISCAL_YEAR = {}, "
                                "STEP = '{}', "
-                               "AMOUNT_TYPE = '{}'".format(
-                        funding_line_id, fiscal_year, step, amount_type))
+                               "AMOUNT_TYPE = '{}'".format(funding_line_id, fiscal_year, step, amount_type))
                     st.experimental_rerun()
 
         elif tabs == 'Bulk download':
             st.subheader('📥 Bulk download')
 
-            df = sf.view_data_funding_amount()
-            df = pd.DataFrame(df,
-                              columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
-                                       'SOURCE_URL',
-                                       'NOTE', 'ORG_ID', 'NAME'])
+            df_amount = pd.DataFrame(sf.view_data_funding_amount(isblank=False),
+                                     columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                              'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE']
+                                     )
+
+            # df_org = sf.view_data_organization()
+            # df_org = pd.DataFrame(sf.view_data_organization(), columns=['ORG_ID', 'PARENT', ])
 
             col1, col2 = st.columns(2)
-            with col1:
-                df_org = st.multiselect("Select ORG_ID:", set(df['ORG_ID']))
-                df_name = st.multiselect("Select NAME:", set(df['NAME']))
-            with col2:
-                df_year = st.multiselect("Select FISCAL_YEAR:", set(df['FISCAL_YEAR']))
-                df_step = st.multiselect("Select STEP:", set(df['STEP']))
 
-            df_selected = sf.view_data_funding_amount(df_org, df_name, df_year, df_step)
+            with col1:
+                # df_org = st.multiselect("Select ORG_ID:", df_org['ORG_ID'])  # set(df['ORG_ID']))
+                select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf.view_all_org_ids()])
+                select_name = st.multiselect("Select NAME:", set(df_amount['NAME']))
+                select_isblank = st.checkbox("Download with blank values?")
+            with col2:
+                select_year = st.multiselect("Select FISCAL_YEAR:", set(df_amount['FISCAL_YEAR']))
+                select_step = st.multiselect("Select STEP:", set(df_amount['STEP']))
+
+            df_selected = sf.view_data_funding_amount(isblank=select_isblank,
+                                                      df_org=select_org,
+                                                      df_name=select_name,
+                                                      df_year=select_year,
+                                                      df_step=select_step)
             df_selected = pd.DataFrame(df_selected,
-                                       columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
-                                                'SOURCE_URL',
-                                                'NOTE', 'ORG_ID', 'NAME'])
+                                       columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                                'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE']
+                                       )
             st.dataframe(df_selected,
                          use_container_width=True)
 
             @st.experimental_memo
-            def convert_df(df):
-                return df.to_csv(index=False).encode('utf-8')
+            def convert_df(df_csv):
+                return df_csv.to_csv(index=False).encode('utf-8')
 
-            csv = convert_df(df_selected)
+            csv = convert_df(pd.DataFrame(sf.view_data_funding_amount(isblank=select_isblank,
+                                                                      df_org=select_org,
+                                                                      df_name=select_name,
+                                                                      df_year=select_year,
+                                                                      df_step=select_step),
+                                          columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                                   'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE']
+                                          ))
 
             if st.download_button(
                     "Press to Download",
@@ -411,21 +431,23 @@ def main():
                     csv_df = pd.read_csv(uploaded_file,
                                          delimiter=';',
                                          header=None,
-                                         names=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
-                                                'SOURCE_URL',
-                                                'NOTE', 'ORG_ID', 'NAME'],
+                                         names=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
+                                                'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE'],
                                          dtype={'FUNDING_LINE_ID': int, 'FISCAL_YEAR': int, 'STEP': str,
-                                                'AMOUNT': float,
+                                                'AMOUNT': float, 'AMOUNT_TYPE': str, 'SOURCE_URL': str,
                                                 'NOTE': str},
                                          skiprows=1)
 
-                    with st.expander('File data preview'):
-                        csv_df = pd.DataFrame(csv_df,
-                                              columns=['FUNDING_LINE_ID', 'FISCAL_YEAR', 'STEP', 'AMOUNT',
-                                                       'AMOUNT_TYPE',
-                                                       'SOURCE_URL', 'NOTE'])
+                    # with st.expander('File data preview'):
+                    csv_df = pd.DataFrame(csv_df,
+                                          columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE',
+                                                   'VERSION',
+                                                   'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE',
+                                                   'SOURCE_URL',
+                                                   'NOTE']
+                                          )
 
-                        st.dataframe(csv_df)
+                    st.dataframe(csv_df)
 
                     st.write('')
                     st.write('### Upload from ', uploaded_file.name)
@@ -434,6 +456,9 @@ def main():
                     if st.button('Submit'):
 
                         if not csv_df.empty:
+
+                            sf.delete_funding_amount_upload(userid=userid)
+
                             for row in csv_df.itertuples():
                                 funding_line_id = row.FUNDING_LINE_ID
                                 fiscal_year = row.FISCAL_YEAR
@@ -443,34 +468,110 @@ def main():
                                 source_url = row.SOURCE_URL
                                 note = row.NOTE
 
-                                df_amount = sf.exists_funding_amount(funding_line_id, int(fiscal_year), step,
-                                                                            amount_type)
-                                df_amount = pd.DataFrame(df_amount)
+                                # df_amount = sf.exists_funding_amount(funding_line_id, int(fiscal_year), step,
+                                #                                      amount_type)
+                                # df_amount = pd.DataFrame(df_amount)
 
-                                if not df_amount.empty:
-                                    sf.update_funding_amount(funding_line_id, int(fiscal_year), step,
-                                                                    amount_type,
-                                                                    int(fiscal_year), step, amount,
-                                                                    amount_type, source_url, note)
-                                    st.warning("Existing FUNDING AMOUNT record was updated: "
-                                               "FUNDING_LINE_ID = '{}', "
-                                               "FISCAL_YEAR = {}, STEP = '{}', "
-                                               "AMOUNT_TYPE = '{}' ".format(
-                                                funding_line_id, int(fiscal_year), step, amount_type))
-                                else:
-                                    sf.insert_funding_amount(funding_line_id, int(fiscal_year), step, amount,
-                                                                    amount_type,
-                                                                    source_url, note)
-                                    st.info("New record added to FUNDING AMOUNT: "
-                                            "FUNDING_LINE_ID = '{}', "
-                                            "FISCAL_YEAR = {}, "
-                                            "STEP = '{}', "
-                                            "AMOUNT_TYPE = '{}'".format(
-                                        funding_line_id, fiscal_year, step, amount_type))
+                                # if not df_amount.empty:
+                                #     sf.update_funding_amount(funding_line_id, int(fiscal_year), step,
+                                #                              amount_type,
+                                #                              int(fiscal_year), step, amount,
+                                #                              amount_type, source_url, note)
+                                #     st.warning("Existing FUNDING AMOUNT record was updated: "
+                                #                "FUNDING_LINE_ID = '{}', "
+                                #                "FISCAL_YEAR = {}, STEP = '{}', "
+                                #                "AMOUNT_TYPE = '{}' ".format(
+                                #         funding_line_id, int(fiscal_year), step, amount_type))
+                                # else:
+                                #     sf.insert_funding_amount(funding_line_id, int(fiscal_year), step, amount,
+                                #                              amount_type,
+                                #                              source_url, note)
+                                #     st.info("New record added to FUNDING AMOUNT: "
+                                #             "FUNDING_LINE_ID = '{}', "
+                                #             "FISCAL_YEAR = {}, "
+                                #             "STEP = '{}', "
+                                #             "AMOUNT_TYPE = '{}'".format(
+                                #         funding_line_id, fiscal_year, step, amount_type))
+
+                                sf.insert_funding_amount_upload(funding_line_id, int(fiscal_year), step, amount,
+                                                                amount_type,
+                                                                source_url, note, userid)
+                                st.info("New record added to FUNDING AMOUNT PREVIEW: "
+                                        "FUNDING_LINE_ID = '{}', "
+                                        "FISCAL_YEAR = {}, "
+                                        "STEP = '{}', "
+                                        "AMOUNT_TYPE = '{}', "
+                                        "USER = '{}'".format(funding_line_id, fiscal_year, step, amount_type, userid))
 
                             st.success('Upload was successfully completed.')
                 except Exception as e:
                     st.error(str(e))
+
+        elif tabs == 'Sync all':
+            st.subheader('☁️ Review and push to database')
+
+            # df_upload = sf.view_data_funding_amount_upload()
+            df_upload = pd.DataFrame(sf.view_data_funding_amount_upload(extended=True),
+                                     columns=['USER', 'FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FISCAL_YEAR', 'STEP',
+                                              'AMOUNT',
+                                              'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE'])
+
+            col1, col2 = st.columns(2)
+            with col1:
+                select_org = st.multiselect("Select ORG_ID:", set(df_upload['ORG_ID']))
+                select_name = st.multiselect("Select NAME:", set(df_upload['NAME']))
+                select_user = st.multiselect("Select USER:", set(df_upload['USER']))
+            with col2:
+                select_year = st.multiselect("Select FISCAL_YEAR:", set(df_upload['FISCAL_YEAR']))
+                select_step = st.multiselect("Select STEP:", set(df_upload['STEP']))
+
+            df_selected = pd.DataFrame(sf.view_data_funding_amount_upload(extended=True,
+                                                                          df_org=select_org,
+                                                                          df_name=select_name,
+                                                                          df_year=select_year,
+                                                                          df_step=select_step,
+                                                                          df_user=select_user),
+                                       columns=['USER', 'FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FISCAL_YEAR', 'STEP',
+                                                'AMOUNT',
+                                                'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE'])
+            st.dataframe(df_selected,
+                         use_container_width=True)
+
+            if st.button('Submit'):
+                for row in df_selected.itertuples():
+                    funding_line_id = row.FUNDING_LINE_ID
+                    fiscal_year = row.FISCAL_YEAR
+                    step = row.STEP
+                    amount = row.AMOUNT
+                    amount_type = row.AMOUNT_TYPE
+                    source_url = row.SOURCE_URL
+                    note = row.NOTE
+
+                    df_amount = pd.DataFrame(sf.exists_funding_amount(funding_line_id, int(fiscal_year), step,
+                                                                      amount_type))
+
+                    if not df_amount.empty:
+                        sf.update_funding_amount(funding_line_id, int(fiscal_year), step,
+                                                 amount_type,
+                                                 int(fiscal_year), step, amount,
+                                                 amount_type, source_url, note)
+                        st.warning("Existing FUNDING AMOUNT record was updated: "
+                                   "FUNDING_LINE_ID = '{}', "
+                                   "FISCAL_YEAR = {}, STEP = '{}', "
+                                   "AMOUNT_TYPE = '{}' ".format(
+                            funding_line_id, int(fiscal_year), step, amount_type))
+                    else:
+                        sf.insert_funding_amount(funding_line_id, int(fiscal_year), step, amount,
+                                                 amount_type,
+                                                 source_url, note)
+                        st.info("New record was added to FUNDING AMOUNT: "
+                                "FUNDING_LINE_ID = '{}', "
+                                "FISCAL_YEAR = {}, "
+                                "STEP = '{}', "
+                                "AMOUNT_TYPE = '{}'".format(
+                            funding_line_id, fiscal_year, step, amount_type))
+
+                st.success('Upload was successfully completed.')
 
         elif tabs == 'Logout':
             cookies['password'] = ''
