@@ -26,7 +26,7 @@ HTML_BANNER = ("    \n"
                "        </h2>\n"
                "    </div>\n"
                "    ")
-
+@st.cache(allow_output_mutation=True)
 def get_manager():
     return stx.CookieManager()
 
@@ -44,7 +44,6 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     value = expire.strftime("%Y-%m-%d %H:%M:%S")
     streamlit_cookie = {"userid": userid, "password": password, "role": role, "expire": value, "schema": schema, "database": database, "account": account, "warehouse": warehouse}
     json_string = json.dumps(streamlit_cookie)
-    logging.info("save_cookie {}".format(json_string))
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
