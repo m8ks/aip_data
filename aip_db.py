@@ -1,5 +1,4 @@
 import snowflake.connector
-import streamlit
 import yaml
 
 

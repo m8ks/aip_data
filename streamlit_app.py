@@ -11,7 +11,7 @@ import extra_streamlit_components as stx
 from datetime import datetime, timedelta
 import base64
 
-cookie_name = 'streamlit_app_session'
+cookie_name = 'app_session'
 HTML_BANNER = ("    \n"
                "    <div style=\"background-color:#0B074E;padding:16px;border-radius:10px\">\n"
                "        <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
