@@ -47,9 +47,7 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
-    cookie_manager.set(cookie_name, base64_message, expires_at=datetime.max)
-
-
+    cookie_manager.set(cookie_name, base64_message)
 
 
 def get_cookie_values():
