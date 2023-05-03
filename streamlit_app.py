@@ -125,7 +125,7 @@ def main():
             st.text_input('Snowflake database', sf_database, disabled=True)
             st.text_input('Snowflake account', sf_account, disabled=True)
         with col2:
-            st.selectbox('Snowflake schema', sf_schema, index=2)
+            st.text_input('Snowflake schema', 'UAT', disabled=True)  # sf_schema, index=2)
             st.text_input('Snowflake warehouse', sf_warehouse, disabled=True)
 
         if st.button('Login'):

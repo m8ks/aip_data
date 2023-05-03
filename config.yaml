@@ -1,7 +1,7 @@
 snowflake:
   account: lib13297.us-east-1
   database: FYI_BUDGET_TRACKER
-  schema: TEST  # DEV
+  schema: UAT  # ['DEV', 'TEST', 'UAT', 'PROD']
   warehouse: FYI_COMPUTE_WH
   insecure_mode: True
   use_openssl_only: False
