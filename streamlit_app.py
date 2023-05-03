@@ -1,10 +1,13 @@
+import json
+from json import JSONDecodeError
 import streamlit as st
 import pandas as pd
 from aip_db import *
 import streamlit.components.v1 as stc
 from st_on_hover_tabs import on_hover_tabs
-from streamlit_cookies_manager import EncryptedCookieManager
+import extra_streamlit_components as stx
 from datetime import datetime, timedelta
+import base64
 
 HTML_BANNER = ("    \n"
                "    <div style=\"background-color:#0B074E;padding:16px;border-radius:10px\">\n"
@@ -15,52 +18,76 @@ HTML_BANNER = ("    \n"
                "        </h1>\n"
                "        <h2 style=\"color:white;"
                "            text-align:center;"
-               "            font-family:Trebuchet MS, sans-serif;\">version 1.1"
+               "            font-family:Trebuchet MS, sans-serif;\">version 1.2"
                "        </h2>\n"
                "    </div>\n"
                "    ")
 
-# This should be on top of your script
-cookies = EncryptedCookieManager(
-    # This prefix will get added to all your cookie names.
-    # This way you can run your app on Streamlit Cloud without cookie name clashes with other apps.
-    prefix="localhost/",
-    # prefix="",   # no prefix will show all your cookies for this domain
-    # You should setup COOKIES_PASSWORD secret if you're running on Streamlit Cloud.
-    # password=os.environ.get("COOKIES_PASSWORD", "My secret password"),
-    password='streamlit'
-)
 
-if not cookies.ready():
-    # Wait for the component to load and send us current cookies.
-    st.stop()
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def get_manager():
+    return stx.CookieManager()
+
+
+cookie_manager = get_manager()
+
+
+def save_cookie(userid, password, role):
+    with open("config.yaml") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    minutes = config['cookie']['expiry_minutes']
+    expire = datetime.now() + timedelta(minutes=minutes)
+    value = expire.strftime("%Y-%m-%d %H:%M:%S")
+    streamlit_cookie = {"userid": userid, "password": password, "role": role, "expire": value}
+    json_string = json.dumps(streamlit_cookie)
+    message_bytes = json_string.encode('ascii')
+    base64_bytes = base64.b64encode(message_bytes)
+    base64_message = base64_bytes.decode('ascii')
+    cookie_manager.set('streamlit_cookie', base64_message, expires_at=datetime.max)
+
+
+def get_cookie_values():
+    user_value, password_value, role_value, expire_value = None, None, None, None
+
+    json_data = cookie_manager.get('streamlit_cookie')
+    if json_data:
+        base64_bytes = json_data.encode('ascii')
+        message_bytes = base64.b64decode(base64_bytes)
+        message = message_bytes.decode('ascii')
+        streamlit_cookie = json.loads(message)
+        try:
+            user_value = streamlit_cookie['userid']
+            password_value = streamlit_cookie['password']
+            role_value = streamlit_cookie['role']
+            expire_value = streamlit_cookie['expire']
+        except JSONDecodeError:
+            pass
+
+    return [user_value, password_value, role_value, expire_value]
 
 
 def main():
     st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
     stc.html(HTML_BANNER, height=225)
-
+    cookie_manager.get_all()
     sf = Snowflake()
-    userid = cookies.get('userid')
-    password = cookies.get('password')
-    role = cookies.get('role')
-    value = cookies.get('expire_datetime')
+
+    [userid, password, role, value] = get_cookie_values()
+
+    # st.info(value)
 
     expire = datetime.now()
 
     if value is not None:
-        expire = datetime.strptime(value, "%d-%b-%Y-%H:%M:%S")
-
-    # st.info(expire)
+        expire = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
     if expire < datetime.now():
-        cookies['userid'] = ''
-        cookies['password'] = ''
-        cookies['role'] = ''
+        if cookie_manager.get('streamlit_cookie'):
+            cookie_manager.delete('streamlit_cookie')
         userid = ''
         password = ''
         role = ''
-        cookies.save()
 
     if userid is None:
         userid = ''
@@ -71,6 +98,7 @@ def main():
     if userid != '' and password != '':
         try:
             sf.authorization(userid, password, role)
+            save_cookie(userid, password, role)
         except Exception as e:
             st.error(str(e))
 
@@ -79,19 +107,26 @@ def main():
         userid = st.text_input('Username').lower()
         password = st.text_input('Password', type="password")
         role = st.selectbox('Snowflake role',
-                            ('PUBLIC', 'ACCOUNTADMIN', 'SECURITYADMIN', 'SYSADMIN', 'USERADMIN'),
-                            index=1,
-                            disabled=True)
+                            ('PUBLIC', 'ACCOUNTADMIN', 'FYI_BUDGET_TRACKER_DB_ADMIN_ROLE'),
+                            index=2,
+                            disabled=False)  # True)
 
         col1, col2 = st.columns(2)
 
+        with open("config.yaml") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+
+        sf_account = config['snowflake']['account']
+        sf_database = config['snowflake']['database']
+        sf_schema = config['snowflake']['schema']
+        sf_warehouse = config['snowflake']['warehouse']
+
         with col1:
-            st.text_input('Snowflake database', 'FYI_BUDGET_TRACKER', disabled=True)
-            st.text_input('Snowflake account', 'lib13297.us - east - 1', disabled=True)
+            st.text_input('Snowflake database', sf_database, disabled=True)
+            st.text_input('Snowflake account', sf_account, disabled=True)
         with col2:
-            # st.text_input('Snowflake schema', 'TEST', disabled=True)
-            st.selectbox('Snowflake schema', ('DEV', 'TEST', 'UAT'), index=1)  # disabled=True)
-            st.text_input('Snowflake warehouse', 'FYI_COMPUTE_WH', disabled=True)
+            st.selectbox('Snowflake schema', sf_schema, index=2)
+            st.text_input('Snowflake warehouse', sf_warehouse, disabled=True)
 
         if st.button('Login'):
             if userid == '' or password == '':
@@ -99,26 +134,16 @@ def main():
             else:
                 try:
                     sf.authorization(userid, password, role)
-                    with open("config.yaml") as f:
-                        config = yaml.load(f, Loader=yaml.FullLoader)
-
-                    minutes = config['cookie']['expiry_minutes']
-                    expire = datetime.now() + timedelta(minutes=minutes)
-
-                    cookies['password'] = password
-                    cookies['userid'] = userid
-                    cookies['role'] = role
-                    cookies['expire_datetime'] = expire.strftime("%d-%b-%Y-%H:%M:%S")
-                    cookies.save()
+                    save_cookie(userid, password, role)
                     st.experimental_rerun()
                 except Exception as e:
                     st.error(str(e))
     else:
         with st.sidebar:
             tabs = on_hover_tabs(
-                tabName=['Organization', 'Funding Line', 'Edit Line', 'Funding Amount', 'Bulk download',
+                tabName=['Home', 'Organization', 'Funding Line', 'Edit Line', 'Funding Amount', 'Bulk download',
                          'Bulk upload', 'Sync all', 'Logout', 'About'],
-                iconName=['table', 'table', 'edit', 'table', 'download', 'upload', 'cloud_sync', 'logout'],
+                iconName=['home', 'table', 'table', 'edit', 'table', 'download', 'upload', 'cloud_sync', 'logout'],
                 default_choice=0,
                 styles={'navtab': {'background-color': '#111',
                                    'color': '#818181',
@@ -136,12 +161,31 @@ def main():
                                      'padding-left': '30px'}},
                 key="1")
 
-        if tabs == 'Organization':
+        if tabs == 'Home':
+            st.subheader('🏠 Home page')
+
+            st.info('Here is a Script - you can use the UAT database for testing:\n'
+                    '1) Login\n'
+                    '2) Org - use the drill down tool to look up Orgs (and children), add an Org\n'
+                    '3) Funding Line Item - use the drill down tool to look up a Funding Line Item, add a Funding '
+                    'Line Item, and Edit a Funding Line Item\n '
+                    '4) Funding Amount - use drill down to look up Funding Amounts, Add new record\n'
+                    '5) Funding Amount - Bulk Download - filter to items to download, choose empty field option and '
+                    'then repeat with populated field option - verify that a csv file is downloaded to your computer '
+                    'each time with expected format and columns populated\n '
+                    '6) Funding Amount - Bulk Upload - Use one of csv files downloaded in step 5 (or both) - edit the '
+                    'contents - upload - verify that data is placed in the Preview table\n '
+                    '7) Synchronize - view bulk uploaded data - verify user name - go back to step 6 and alter a line '
+                    'in the csv file - re-upload - verify that the previous Preview data is replaced by the new '
+                    'upload - submit - verify data has either been added or updated existing data in Funding Amounts '
+                    'table (step 4)\n '
+                    '8) Log out (Sign out) and Log back in')
+
+        elif tabs == 'Organization':
             st.subheader('🏢 Organization list')
 
             sf_org = sf.view_data_organization()
-            df_org = pd.DataFrame(sf_org,
-                                  columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
+            pd.DataFrame(sf_org, columns=['ORG', 'PARENT', 'ORG_ID', 'LEVEL', 'NAME'])
 
             sf_org_ids = sf.view_all_org_ids()
             select_org = st.multiselect("Select ORG_ID:", [str(i[0]) for i in sf_org_ids])
@@ -574,10 +618,7 @@ def main():
                 st.success('Upload was successfully completed.')
 
         elif tabs == 'Logout':
-            cookies['password'] = ''
-            cookies['userid'] = ''
-            cookies['role'] = ''
-            cookies.save()
+            cookie_manager.delete('streamlit_cookie')
             st.experimental_rerun()
 
         else:
