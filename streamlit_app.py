@@ -28,7 +28,6 @@ HTML_BANNER = ("    \n"
                "    ")
 @st.cache(allow_output_mutation=True)
 def get_manager():
-    stx.IS_RELEASE = False
     return stx.CookieManager()
 
 
@@ -56,7 +55,7 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
-    cookie_manager.set(cookie_name, base64_message)
+    cookie_manager.set(cookie_name, base64_message, domain='.streamlit.app')
 
 def get_cookie_values():
     user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value \
