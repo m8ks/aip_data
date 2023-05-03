@@ -90,11 +90,6 @@ def main():
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
-    st.info(schema)
-    st.info(database)
-    st.info(account)
-    st.info(warehouse)
-
     expire = datetime.now()
 
     if value is not None:

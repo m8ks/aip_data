@@ -18,7 +18,6 @@ class Snowflake:
         return self.cx is None
 
     def authorization(self, user, password, role, schema, database, account, warehouse):
-        # user='CONTRACTORDMITRYT', password='789321QWEqaz'
         self.connect = snowflake.connector.connect(
             user=user,
             password=password,

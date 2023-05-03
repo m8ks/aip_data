@@ -23,4 +23,3 @@ PyYAML~=6.0
 hasher~=2.0.1
 streamlit-on-Hover-tabs
 streamlit~=1.16.0
-extra-streamlit-components-better-cookie-manager==0.0.10
