@@ -44,13 +44,10 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     value = expire.strftime("%Y-%m-%d %H:%M:%S")
     streamlit_cookie = {"userid": userid, "password": password, "role": role, "expire": value, "schema": schema, "database": database, "account": account, "warehouse": warehouse}
     json_string = json.dumps(streamlit_cookie)
-    logging.info(json_string)
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
     cookie_manager.set(cookie_name, base64_message)
-    logging.info(base64_message)
-
 
 def get_cookie_values():
     user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value = None, None, None, None, None, None, None, None
