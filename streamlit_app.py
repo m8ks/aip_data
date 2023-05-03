@@ -38,8 +38,6 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    logging.info(config)
-
     minutes = config['cookie']['expiry_minutes']
     expire = datetime.now() + timedelta(minutes=minutes)
     value = expire.strftime("%Y-%m-%d %H:%M:%S")
@@ -89,6 +87,7 @@ def main():
     st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
     stc.html(HTML_BANNER, height=225)
     cookie_manager.get_all()
+    logging.info(stx.IS_RELEASE)
     sf = Snowflake()
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
