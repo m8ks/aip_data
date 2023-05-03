@@ -27,7 +27,6 @@ HTML_BANNER = ("    \n"
                "    ")
 
 
-@st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def get_manager():
     return stx.CookieManager()
 
