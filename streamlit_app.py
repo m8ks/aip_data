@@ -1,7 +1,10 @@
 import json
+import logging
 from json import JSONDecodeError
 import streamlit as st
 import pandas as pd
+import yaml
+
 from aip_db import *
 import streamlit.components.v1 as stc
 from st_on_hover_tabs import on_hover_tabs
@@ -9,48 +12,42 @@ import extra_streamlit_components as stx
 from datetime import datetime, timedelta
 import base64
 
-HTML_BANNER = ("    \n"
-               "    <div style=\"background-color:#0B074E;padding:16px;border-radius:10px\">\n"
-               "        <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
-               "        <h1 style=\"color:white;"
-               "            text-align:center;"
-               "            font-family:Trebuchet MS, sans-serif;\">Snowflake Data Management"
-               "        </h1>\n"
-               "        <h2 style=\"color:white;"
-               "            text-align:center;"
-               "            font-family:Trebuchet MS, sans-serif;\">version 1.2"
-               "        </h2>\n"
-               "    </div>\n"
-               "    ")
+cookie_name = 'streamlit_cookie'
+
+if cookie_name not in st.session_state:
+    st.session_state[cookie_name] = ''
 
 
-@st.cache(allow_output_mutation=True, suppress_st_warning=True)
-def get_manager():
-    return stx.CookieManager()
-
-
-cookie_manager = get_manager()
-
-
-def save_cookie(userid, password, role):
+def save_cookie(userid, password, role, schema, database, account, warehouse):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     minutes = config['cookie']['expiry_minutes']
     expire = datetime.now() + timedelta(minutes=minutes)
     value = expire.strftime("%Y-%m-%d %H:%M:%S")
-    streamlit_cookie = {"userid": userid, "password": password, "role": role, "expire": value}
+    streamlit_cookie = {
+        "userid": userid,
+        "password": password,
+        "role": role,
+        "expire": value,
+        "schema": schema,
+        "database": database,
+        "account": account,
+        "warehouse": warehouse
+    }
     json_string = json.dumps(streamlit_cookie)
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
-    cookie_manager.set('streamlit_cookie', base64_message, expires_at=datetime.max)
+    st.session_state[cookie_name] = base64_message
 
 
 def get_cookie_values():
-    user_value, password_value, role_value, expire_value = None, None, None, None
+    user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value \
+        = None, None, None, None, None, None, None, None
 
-    json_data = cookie_manager.get('streamlit_cookie')
+    json_data = st.session_state[cookie_name]
+
     if json_data:
         base64_bytes = json_data.encode('ascii')
         message_bytes = base64.b64decode(base64_bytes)
@@ -61,21 +58,43 @@ def get_cookie_values():
             password_value = streamlit_cookie['password']
             role_value = streamlit_cookie['role']
             expire_value = streamlit_cookie['expire']
+            schema_value = streamlit_cookie['schema']
+            database_value = streamlit_cookie['database']
+            account_value = streamlit_cookie['account']
+            warehouse_value = streamlit_cookie['warehouse']
         except JSONDecodeError:
             pass
 
-    return [user_value, password_value, role_value, expire_value]
+    return [user_value, password_value, role_value, expire_value, schema_value, database_value, account_value,
+            warehouse_value]
 
 
 def main():
     st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
-    stc.html(HTML_BANNER, height=225)
-    cookie_manager.get_all()
     sf = Snowflake()
 
-    [userid, password, role, value] = get_cookie_values()
+    [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
-    # st.info(value)
+    if schema:
+        schema_str = schema + ", version 1.2"
+    else:
+        schema_str = "version 1.2"
+
+    html_banner = ("    \n"
+                   "    <div style=\"background-color:#0B074E;padding:16px;border-radius:10px\">\n"
+                   "        <img src=\"https://www.aip.org/sites/default/files/aip-logo-180.png\">\n"
+                   "        <h1 style=\"color:white;"
+                   "            text-align:center;"
+                   "            font-family:Trebuchet MS, sans-serif;\">FYI Budget Tracker "
+                   "        </h1>\n"
+                   "        <h2 style=\"color:white;"
+                   "            text-align:center;"
+                   "            font-family:Trebuchet MS, sans-serif;\">" + schema_str + ""
+                   "        </h2>\n"
+                   "    </div>\n"
+                   "    ")
+
+    stc.html(html_banner, height=225)
 
     expire = datetime.now()
 
@@ -83,8 +102,7 @@ def main():
         expire = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
     if expire < datetime.now():
-        if cookie_manager.get('streamlit_cookie'):
-            cookie_manager.delete('streamlit_cookie')
+        st.session_state[cookie_name] = ''
         userid = ''
         password = ''
         role = ''
@@ -97,21 +115,13 @@ def main():
 
     if userid != '' and password != '':
         try:
-            sf.authorization(userid, password, role)
-            save_cookie(userid, password, role)
+            sf.authorization(userid, password, role, schema, database, account, warehouse)
+            save_cookie(userid, password, role, schema, database, account, warehouse)
         except Exception as e:
             st.error(str(e))
 
     if sf.not_connected():
         st.subheader('🧑‍💻 Authorization')
-        userid = st.text_input('Username').lower()
-        password = st.text_input('Password', type="password")
-        role = st.selectbox('Snowflake role',
-                            ('PUBLIC', 'ACCOUNTADMIN', 'FYI_BUDGET_TRACKER_DB_ADMIN_ROLE'),
-                            index=2,
-                            disabled=False)  # True)
-
-        col1, col2 = st.columns(2)
 
         with open("config.yaml") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
@@ -120,12 +130,22 @@ def main():
         sf_database = config['snowflake']['database']
         sf_schema = config['snowflake']['schema']
         sf_warehouse = config['snowflake']['warehouse']
+        sf_role = config['snowflake']['role']
+
+        userid = st.text_input('Username').lower()
+        password = st.text_input('Password', type="password")
+        role = st.selectbox('Snowflake role',
+                            sf_role,
+                            index=2,
+                            disabled=False)  # True)
+
+        col1, col2 = st.columns(2)
 
         with col1:
             st.text_input('Snowflake database', sf_database, disabled=True)
             st.text_input('Snowflake account', sf_account, disabled=True)
         with col2:
-            st.text_input('Snowflake schema', 'UAT', disabled=True)  # sf_schema, index=2)
+            select_schema = st.selectbox('Snowflake schema', sf_schema, index=3)
             st.text_input('Snowflake warehouse', sf_warehouse, disabled=True)
 
         if st.button('Login'):
@@ -133,8 +153,10 @@ def main():
                 st.warning('Please provide account and password to login.')
             else:
                 try:
-                    sf.authorization(userid, password, role)
-                    save_cookie(userid, password, role)
+                    sf.authorization(userid, password, role, select_schema, sf_database, sf_account,
+                                     sf_warehouse)  # sf_schema[2]
+                    save_cookie(userid, password, role, select_schema, sf_database, sf_account,
+                                sf_warehouse)  # sf_schema[2]
                     st.experimental_rerun()
                 except Exception as e:
                     st.error(str(e))
@@ -143,6 +165,7 @@ def main():
             tabs = on_hover_tabs(
                 tabName=['Home', 'Organization', 'Funding Line', 'Edit Line', 'Funding Amount', 'Bulk download',
                          'Bulk upload', 'Sync all', 'Logout', 'About'],
+                # iconName=['', '', '', '', '', '', '', '', ''],
                 iconName=['home', 'table', 'table', 'edit', 'table', 'download', 'upload', 'cloud_sync', 'logout'],
                 default_choice=0,
                 styles={'navtab': {'background-color': '#111',
@@ -218,7 +241,7 @@ def main():
                     parent_level = sf.get_parent_level(parent)
                 parent_level = pd.DataFrame(parent_level)
                 level = st.text_input('LEVEL', int(parent_level[0].values + 1), disabled=True)
-                name = st.text_input('NAME', 'Dummy name')
+                name = st.text_input('NAME')  # , 'Dummy name')
 
             if st.button('Submit'):
                 df_org_ids = pd.DataFrame(sf_org_ids)
@@ -262,16 +285,16 @@ def main():
                 st.text_input('ID', int(last_row[0].values + 1), disabled=True)
                 list_of_records = [i[0] for i in sf_org_ids]
                 org_id = st.selectbox('ORG_ID', list_of_records)
-                name = st.text_input('NAME', 'Dummy name')
+                name = st.text_input('NAME')  # , 'Dummy name')
 
             with col2:
-                funding_type = st.text_input('FUNDING_TYPE', 'Dummy funding type')
+                funding_type = st.text_input('FUNDING_TYPE')  # , 'Dummy funding type')
                 version = st.number_input('VERSION', 0)
                 top_line = st.selectbox('TOP_LINE', ('FALSE', 'TRUE'))
-                note = st.text_area('NOTE', 'Dummy note')
+                note = st.text_area('NOTE')  # , 'Dummy note')
 
             if st.button('Submit'):
-                sf_line = sf.exists_funding_line(org_id, name, version)
+                sf_line = sf.exist_funding_line(org_id, name, version)
                 df_line = pd.DataFrame(sf_line)
 
                 if not df_line.empty:
@@ -384,16 +407,16 @@ def main():
                                             '2090', '2091', '2092', '2093', '2094', '2095', '2096', '2097',
                                             '2098', '2099'),
                                            index=13)
-                step = st.selectbox('STEP', ('Request', 'House', 'Senate', 'Enacted'))
+                step = st.selectbox('STEP', ('Request', 'House', 'Senate', 'Enacted', 'Authorized'))
 
             with col2:
                 amount = st.number_input('AMOUNT')
-                amount_type = st.text_input('AMOUNT_TYPE', 'Dummy amount type')
-                source_url = st.text_input('SOURCE_URL', 'Dummy source url')
-                note = st.text_area('NOTE', 'Dummy note')
+                amount_type = st.text_input('AMOUNT_TYPE')  # , 'Dummy amount type')
+                source_url = st.text_input('SOURCE_URL')  # , 'Dummy source url')
+                note = st.text_area('NOTE')  # , 'Dummy note')
 
             if st.button('Submit'):
-                df = sf.exists_funding_amount(funding_line_id, int(fiscal_year), step, amount_type)
+                df = sf.exist_funding_amount(funding_line_id, int(fiscal_year), step, amount_type)
                 df = pd.DataFrame(df)
 
                 if not df.empty:
@@ -411,6 +434,11 @@ def main():
 
         elif tabs == 'Bulk download':
             st.subheader('📥 Bulk download')
+            st.info('How to download? \n'
+                    '- Filter items to download \n'
+                    '- Choose empty field option if you wnat to download with blank values \n'
+                    '- Verify that a csv file is downloaded to your computer '
+                    'with expected format and columns populated ')
 
             df_amount = pd.DataFrame(sf.view_data_funding_amount(isblank=False),
                                      columns=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
@@ -467,13 +495,19 @@ def main():
 
         elif tabs == 'Bulk upload':
             st.subheader('📤 Bulk upload')
+            st.info('You can use bulk upload by selecting the csv file, \n'
+                    'please verify the data and push it into the Preview table by clicking \'Submit\' button')
 
+            with open("config.yaml") as f:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+
+            delimiter = config['file_upload']['delimiter']
             uploaded_file = st.file_uploader('Upload CSV', type='.csv')
 
             if uploaded_file:
                 try:
                     csv_df = pd.read_csv(uploaded_file,
-                                         delimiter=';',
+                                         delimiter=delimiter,  # ';',
                                          header=None,
                                          names=['FUNDING_LINE_ID', 'ORG_ID', 'NAME', 'FUNDING_TYPE', 'VERSION',
                                                 'FISCAL_YEAR', 'STEP', 'AMOUNT', 'AMOUNT_TYPE', 'SOURCE_URL', 'NOTE'],
@@ -501,7 +535,7 @@ def main():
 
                         if not csv_df.empty:
 
-                            sf.delete_funding_amount_upload(userid=userid)
+                            # sf.delete_funding_amount_upload(userid=userid)
 
                             for row in csv_df.itertuples():
                                 funding_line_id = row.FUNDING_LINE_ID
@@ -512,47 +546,55 @@ def main():
                                 source_url = row.SOURCE_URL
                                 note = row.NOTE
 
-                                # df_amount = sf.exists_funding_amount(funding_line_id, int(fiscal_year), step,
-                                #                                      amount_type)
-                                # df_amount = pd.DataFrame(df_amount)
+                                df_amount_upload = sf.exist_funding_amount_upload(userid, funding_line_id, fiscal_year,
+                                                                                  step, amount_type)
+                                df_amount_upload = pd.DataFrame(df_amount_upload)
 
-                                # if not df_amount.empty:
-                                #     sf.update_funding_amount(funding_line_id, int(fiscal_year), step,
-                                #                              amount_type,
-                                #                              int(fiscal_year), step, amount,
-                                #                              amount_type, source_url, note)
-                                #     st.warning("Existing FUNDING AMOUNT record was updated: "
-                                #                "FUNDING_LINE_ID = '{}', "
-                                #                "FISCAL_YEAR = {}, STEP = '{}', "
-                                #                "AMOUNT_TYPE = '{}' ".format(
-                                #         funding_line_id, int(fiscal_year), step, amount_type))
-                                # else:
-                                #     sf.insert_funding_amount(funding_line_id, int(fiscal_year), step, amount,
-                                #                              amount_type,
-                                #                              source_url, note)
-                                #     st.info("New record added to FUNDING AMOUNT: "
-                                #             "FUNDING_LINE_ID = '{}', "
-                                #             "FISCAL_YEAR = {}, "
-                                #             "STEP = '{}', "
-                                #             "AMOUNT_TYPE = '{}'".format(
-                                #         funding_line_id, fiscal_year, step, amount_type))
+                                if not df_amount_upload.empty:
+                                    sf.update_funding_amount_upload(userid, funding_line_id, int(fiscal_year), step,
+                                                                    amount_type, int(fiscal_year), step, amount,
+                                                                    amount_type, source_url, note)
+                                    st.warning("Existing FUNDING AMOUNT PREVIEW was updated for '{}': "
+                                               "FUNDING_LINE_ID = '{}', "
+                                               "FISCAL_YEAR = {}, STEP = '{}', "
+                                               "AMOUNT_TYPE = '{}' ".format(userid, funding_line_id, int(fiscal_year),
+                                                                            step, amount_type))
+                                else:
+                                    sf.insert_funding_amount_upload(userid, funding_line_id, int(fiscal_year), step,
+                                                                    amount, amount_type, source_url, note)
+                                    st.info("New record added to FUNDING AMOUNT PREVIEW for '{}': "
+                                            "FUNDING_LINE_ID = '{}', "
+                                            "FISCAL_YEAR = {}, "
+                                            "STEP = '{}', "
+                                            "AMOUNT_TYPE = '{}'".format(userid, funding_line_id, fiscal_year,
+                                                                        step, amount_type))
 
-                                sf.insert_funding_amount_upload(funding_line_id, int(fiscal_year), step, amount,
-                                                                amount_type,
-                                                                source_url, note, userid)
-                                st.info("New record added to FUNDING AMOUNT PREVIEW: "
-                                        "FUNDING_LINE_ID = '{}', "
-                                        "FISCAL_YEAR = {}, "
-                                        "STEP = '{}', "
-                                        "AMOUNT_TYPE = '{}', "
-                                        "USER = '{}'".format(funding_line_id, fiscal_year, step, amount_type, userid))
+                                # sf.insert_funding_amount_upload(funding_line_id, int(fiscal_year), step, amount,
+                                #                                 amount_type,
+                                #                                 source_url, note, userid)
+                                # st.info("New record added to FUNDING AMOUNT PREVIEW: "
+                                #         "FUNDING_LINE_ID = '{}', "
+                                #         "FISCAL_YEAR = {}, "
+                                #         "STEP = '{}', "
+                                #         "AMOUNT_TYPE = '{}', "
+                                #         "USER = '{}'".format(funding_line_id, fiscal_year, step, amount_type, userid))
 
                             st.success('Upload was successfully completed.')
+                            st.experimental_rerun()
+
                 except Exception as e:
                     st.error(str(e))
 
         elif tabs == 'Sync all':
             st.subheader('☁️ Review and push to database')
+            st.info('How to synchronize? \n'
+                    '- View bulk uploaded data \n'
+                    '- Verify user name \n'
+                    '- Go back to Bulk upload and alter a line in '
+                    'the csv file and then re-upload \n'
+                    '- Verify that the previous Preview data is replaced by the new upload \n'
+                    '- Submit \n'
+                    '- Verify data has either been added or updated existing data in Funding Amounts table')
 
             # df_upload = sf.view_data_funding_amount_upload()
             df_upload = pd.DataFrame(sf.view_data_funding_amount_upload(extended=True),
@@ -565,6 +607,7 @@ def main():
                 select_org = st.multiselect("Select ORG_ID:", set(df_upload['ORG_ID']))
                 select_name = st.multiselect("Select NAME:", set(df_upload['NAME']))
                 select_user = st.multiselect("Select USER:", set(df_upload['USER']))
+                select_clear = st.checkbox("Clear all data in Preview table after sync?")
             with col2:
                 select_year = st.multiselect("Select FISCAL_YEAR:", set(df_upload['FISCAL_YEAR']))
                 select_step = st.multiselect("Select STEP:", set(df_upload['STEP']))
@@ -582,6 +625,10 @@ def main():
                          use_container_width=True)
 
             if st.button('Submit'):
+
+                if select_org == [] and select_name == [] and select_year == [] and select_step == []:
+                    st.warning('All items from Preview table will be pushed into database.. please wait')
+
                 for row in df_selected.itertuples():
                     funding_line_id = row.FUNDING_LINE_ID
                     fiscal_year = row.FISCAL_YEAR
@@ -591,8 +638,8 @@ def main():
                     source_url = row.SOURCE_URL
                     note = row.NOTE
 
-                    df_amount = pd.DataFrame(sf.exists_funding_amount(funding_line_id, int(fiscal_year), step,
-                                                                      amount_type))
+                    df_amount = pd.DataFrame(sf.exist_funding_amount(funding_line_id, int(fiscal_year), step,
+                                                                     amount_type))
 
                     if not df_amount.empty:
                         sf.update_funding_amount(funding_line_id, int(fiscal_year), step,
@@ -615,10 +662,24 @@ def main():
                                 "AMOUNT_TYPE = '{}'".format(
                             funding_line_id, fiscal_year, step, amount_type))
 
+                    if select_clear:
+                        sf.delete_funding_amount_upload(userid, funding_line_id, fiscal_year, step, amount_type)
+
                 st.success('Upload was successfully completed.')
+                st.experimental_rerun()
+
+            if st.button('Clear'):
+                if select_org == [] and select_name == [] and select_year == [] and select_step == []:
+                    st.warning('All items from Preview table will be purged.. please wait')
+
+                for row in df_selected.itertuples():
+                    sf.delete_funding_amount_upload(userid, row.FUNDING_LINE_ID, row.FISCAL_YEAR, row.STEP, row.AMOUNT_TYPE)
+
+                st.success('Purge was successfully completed.')
+                st.experimental_rerun()
 
         elif tabs == 'Logout':
-            cookie_manager.delete('streamlit_cookie')
+            st.session_state[cookie_name] = ''
             st.experimental_rerun()
 
         else:

@@ -1,10 +1,13 @@
 snowflake:
   account: lib13297.us-east-1
   database: FYI_BUDGET_TRACKER
-  schema: UAT  # ['DEV', 'TEST', 'UAT', 'PROD']
+  schema: ['DEV', 'TEST', 'UAT', 'PROD']
   warehouse: FYI_COMPUTE_WH
   insecure_mode: True
   use_openssl_only: False
+  role: ['ACCOUNTADMIN', 'SYSADMIN', 'FYI_BUDGET_TRACKER_DB_ADMIN_ROLE']
 cookie:
   expiry_hours: 0
   expiry_minutes: 30
+file_upload:
+  delimiter: ','
