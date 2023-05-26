@@ -103,8 +103,6 @@ def main():
     if value is not None:
         expire = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
-    st.info(value)
-
     if expire < datetime.now():
         if cookie_manager.get(cookie_name):
             cookie_manager.delete(cookie_name)
