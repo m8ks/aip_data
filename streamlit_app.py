@@ -1,21 +1,25 @@
 import json
-import logging
 from json import JSONDecodeError
 import streamlit as st
 import pandas as pd
-import yaml
 
+import re
 from aip_db import *
 import streamlit.components.v1 as stc
 from st_on_hover_tabs import on_hover_tabs
-import extra_streamlit_components as stx
+from streamlit.runtime.runtime import Runtime, SessionInfo
+from streamlit.runtime.scriptrunner import add_script_run_ctx
+from streamlit.web.server.server import Server
 from datetime import datetime, timedelta
 import base64
+import extra_streamlit_components as stx
 
 cookie_name = 'streamlit_cookie'
 
-if cookie_name not in st.session_state:
-    st.session_state[cookie_name] = ''
+
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def get_manager():
+    return stx.CookieManager()
 
 
 def save_cookie(userid, password, role, schema, database, account, warehouse):
@@ -39,14 +43,14 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
     message_bytes = json_string.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     base64_message = base64_bytes.decode('ascii')
-    st.session_state[cookie_name] = base64_message
+    get_manager().set(cookie_name, base64_message, expires_at=datetime.max)
 
 
 def get_cookie_values():
     user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value \
         = None, None, None, None, None, None, None, None
 
-    json_data = st.session_state[cookie_name]
+    json_data = get_manager().get(cookie_name)
 
     if json_data:
         base64_bytes = json_data.encode('ascii')
@@ -72,6 +76,8 @@ def get_cookie_values():
 def main():
     st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
     sf = Snowflake()
+    cookie_manager = get_manager()
+    cookie_manager.get_all()
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
@@ -90,9 +96,9 @@ def main():
                    "        <h2 style=\"color:white;"
                    "            text-align:center;"
                    "            font-family:Trebuchet MS, sans-serif;\">" + schema_str + ""
-                   "        </h2>\n"
-                   "    </div>\n"
-                   "    ")
+                                                                                         "        </h2>\n"
+                                                                                         "    </div>\n"
+                                                                                         "    ")
 
     stc.html(html_banner, height=225)
 
@@ -101,8 +107,11 @@ def main():
     if value is not None:
         expire = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
+    st.info(value)
+
     if expire < datetime.now():
-        st.session_state[cookie_name] = ''
+        if cookie_manager.get(cookie_name):
+            cookie_manager.delete(cookie_name)
         userid = ''
         password = ''
         role = ''
@@ -157,7 +166,6 @@ def main():
                                      sf_warehouse)  # sf_schema[2]
                     save_cookie(userid, password, role, select_schema, sf_database, sf_account,
                                 sf_warehouse)  # sf_schema[2]
-                    st.experimental_rerun()
                 except Exception as e:
                     st.error(str(e))
     else:
@@ -673,14 +681,15 @@ def main():
                     st.warning('All items from Preview table will be purged.. please wait')
 
                 for row in df_selected.itertuples():
-                    sf.delete_funding_amount_upload(userid, row.FUNDING_LINE_ID, row.FISCAL_YEAR, row.STEP, row.AMOUNT_TYPE)
+                    sf.delete_funding_amount_upload(userid, row.FUNDING_LINE_ID, row.FISCAL_YEAR, row.STEP,
+                                                    row.AMOUNT_TYPE)
 
                 st.success('Purge was successfully completed.')
                 st.experimental_rerun()
 
         elif tabs == 'Logout':
-            st.session_state[cookie_name] = ''
-            st.experimental_rerun()
+            if cookie_manager.get(cookie_name):
+                cookie_manager.delete(cookie_name)
 
         else:
             st.subheader('About')
