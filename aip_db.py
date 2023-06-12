@@ -6,6 +6,7 @@ class Snowflake:
     def __init__(self):
         self.connect = None
         self.cx = None
+        self.user = None
 
         with open("config.yaml") as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
@@ -21,7 +22,7 @@ class Snowflake:
         return self.cx is not None
 
     def current_user(self):
-        return self.connect.user()
+        return self.user
 
     def authorization(self, user, password, role, schema, database, account, warehouse):
         self.connect = snowflake.connector.connect(
@@ -37,6 +38,7 @@ class Snowflake:
             use_openssl_only=self.config['snowflake']['use_openssl_only'])
         self.cx = self.connect.cursor()
         self.cx.execute("SELECT CURRENT_VERSION()")
+        self.user = user
         data = self.cx.fetchone()
         return data
 
