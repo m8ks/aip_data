@@ -17,6 +17,12 @@ class Snowflake:
     def not_connected(self):
         return self.cx is None
 
+    def connected(self):
+        return self.cx is not None
+
+    def current_user(self):
+        return self.connect.user()
+
     def authorization(self, user, password, role, schema, database, account, warehouse):
         self.connect = snowflake.connector.connect(
             user=user,
