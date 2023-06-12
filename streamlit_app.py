@@ -18,6 +18,11 @@ def get_manager():
     return stx.CookieManager()
 
 
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def get_snowflake():
+    return Snowflake()
+
+
 def save_cookie(userid, password, role, schema, database, account, warehouse):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -70,8 +75,9 @@ def get_cookie_values():
 
 
 def main():
+
     st.markdown('<style>' + open('./style.css').read() + '</style>', unsafe_allow_html=True)
-    sf = Snowflake()
+    sf = get_snowflake()
     cookie_manager = get_manager()
     cookie_manager.get_all()
 
