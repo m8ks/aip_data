@@ -128,6 +128,8 @@ def build(page_title, page_icon):
     if expire < datetime.now():
         if cookie_manager.get(cookie_name):
             cookie_manager.delete(cookie_name)
+
+        get_snowflake().clear_authorization()
         userid = ''
         password = ''
         role = ''
