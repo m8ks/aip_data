@@ -16,6 +16,7 @@ cookie_name = 'streamlit_cookie'
 def get_manager():
     return stx.CookieManager()
 
+cookie_manager = get_manager()
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def get_snowflake():
@@ -85,8 +86,6 @@ def clear_cookie_manager():
 
 def aip_design(page_title, page_icon, add_form=False):
     sf = get_snowflake()
-    cookie_manager = get_manager()
-    cookie_manager.get_all()
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
