@@ -83,7 +83,7 @@ def clear_cookie_manager():
 
     get_snowflake().clear_authorization()
 
-def aip_design(page_title, page_icon, add_form=True):
+def aip_design(page_title, page_icon, add_form=False):
     sf = get_snowflake()
     cookie_manager = get_manager()
     cookie_manager.get_all()
