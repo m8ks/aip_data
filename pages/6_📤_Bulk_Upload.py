@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import aip
-aip.build(page_title='Bulk upload', page_icon='📤')
+
+aip.build(page_title='Bulk upload', page_icon='📤', add_form=False)
 sf = aip.get_snowflake()
 
 if sf.connected():
@@ -39,7 +40,6 @@ if sf.connected():
             st.write('')
             st.write('### Upload from ', uploaded_file.name)
             st.write('')
-
             if st.button('Submit'):
 
                 if not csv_df.empty:
@@ -82,3 +82,4 @@ if sf.connected():
 
         except Exception as e:
             st.error(str(e))
+

@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import aip
 
-aip.build(page_title='Bulk download', page_icon='📥')
+aip.build(page_title='Bulk download', page_icon='📥', add_form=False)
 sf = aip.get_snowflake()
+
 if sf.connected():
     st.info('How to download? \n'
             '- Filter items to download \n'

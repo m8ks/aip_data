@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import base64
 import streamlit.components.v1 as stc
 
+
 cookie_name = 'streamlit_cookie'
 
 
@@ -82,15 +83,7 @@ def clear_cookie_manager():
 
     get_snowflake().clear_authorization()
 
-
-def build(page_title, page_icon):
-    # Config
-    st.set_page_config(page_title=page_title, page_icon=page_icon, layout='wide')
-
-    # Style
-    with open('style.css') as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
+def aip_design(page_title, page_icon, add_form=True):
     sf = get_snowflake()
     cookie_manager = get_manager()
     cookie_manager.get_all()
@@ -172,18 +165,52 @@ def build(page_title, page_icon):
             st.text_input('Snowflake database', sf_database, disabled=True)
             st.text_input('Snowflake account', sf_account, disabled=True)
         with col2:
-            select_schema = st.selectbox('Snowflake schema', sf_schema, index=3)
+            select_schema = st.selectbox('Snowflake schema', sf_schema, index=2)
             st.text_input('Snowflake warehouse', sf_warehouse, disabled=True)
 
-        if st.button('Login'):
-            if userid == '' or password == '':
-                st.warning('Please provide account and password to login.')
-            else:
-                try:
-                    sf.authorization(userid, password, role, select_schema, sf_database, sf_account,
-                                     sf_warehouse)  # sf_schema[2]
-                    save_cookie(userid, password, role, select_schema, sf_database, sf_account,
-                                sf_warehouse)  # sf_schema[2]
-                    # st.experimental_rerun()
-                except Exception as e:
-                    st.error(str(e))
+        if add_form:
+            if st.form_submit_button('Login'):
+                if userid == '' or password == '':
+                    st.warning('Please provide account and password to login.')
+                else:
+                    try:
+                        sf.authorization(userid, password, role, select_schema, sf_database, sf_account,
+                                         sf_warehouse)  # sf_schema[2]
+                        save_cookie(userid, password, role, select_schema, sf_database, sf_account,
+                                    sf_warehouse)  # sf_schema[2]
+
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(str(e))
+        else:
+            if st.button('Login'):
+                if userid == '' or password == '':
+                    st.warning('Please provide account and password to login.')
+                else:
+                    try:
+                        sf.authorization(userid, password, role, select_schema, sf_database, sf_account,
+                                         sf_warehouse)  # sf_schema[2]
+                        save_cookie(userid, password, role, select_schema, sf_database, sf_account,
+                                    sf_warehouse)  # sf_schema[2]
+
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(str(e))
+
+def build(page_title, page_icon, add_form = True):
+    # Config
+    st.set_page_config(page_title=page_title, page_icon=page_icon, layout='wide')
+    # Style
+    with open('style.css') as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+    form = None
+
+    if add_form:
+        form = st.form(page_title)
+        with form:
+            aip_design(page_title, page_icon, add_form)
+    else:
+        aip_design(page_title, page_icon)
+
+    return form
