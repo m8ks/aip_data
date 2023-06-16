@@ -139,6 +139,7 @@ def aip_design(page_title, page_icon, add_form=False):
         try:
             sf.authorization(userid, password, role, schema, database, account, warehouse)
             save_cookie(userid, password, role, schema, database, account, warehouse)
+            st.experimental_rerun()
         except Exception as e:
             st.error(str(e))
 
@@ -180,6 +181,7 @@ def aip_design(page_title, page_icon, add_form=False):
                                          sf_warehouse)  # sf_schema[2]
                         save_cookie(userid, password, role, select_schema, sf_database, sf_account,
                                     sf_warehouse)  # sf_schema[2]
+                        st.experimental_rerun()
                     except Exception as e:
                         st.error(str(e))
         else:
@@ -192,6 +194,7 @@ def aip_design(page_title, page_icon, add_form=False):
                                          sf_warehouse)  # sf_schema[2]
                         save_cookie(userid, password, role, select_schema, sf_database, sf_account,
                                     sf_warehouse)  # sf_schema[2]
+                        st.experimental_rerun()
                     except Exception as e:
                         st.error(str(e))
 
