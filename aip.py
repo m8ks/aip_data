@@ -165,7 +165,7 @@ def aip_design(page_title, page_icon, add_form=True):
             st.text_input('Snowflake database', sf_database, disabled=True)
             st.text_input('Snowflake account', sf_account, disabled=True)
         with col2:
-            select_schema = st.selectbox('Snowflake schema', sf_schema, index=2)
+            select_schema = st.selectbox('Snowflake schema', sf_schema, index=3)
             st.text_input('Snowflake warehouse', sf_warehouse, disabled=True)
 
         if add_form:
