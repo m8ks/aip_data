@@ -87,8 +87,7 @@ def clear_cookie_manager():
     get_snowflake().clear_authorization()
 
 
-def aip_design(page_title, page_icon, add_form=False):
-    sf = get_snowflake()
+def aip_design(sf, page_title, page_icon, add_form=False):
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
@@ -139,7 +138,6 @@ def aip_design(page_title, page_icon, add_form=False):
         try:
             sf.authorization(userid, password, role, schema, database, account, warehouse)
             save_cookie(userid, password, role, schema, database, account, warehouse)
-            st.experimental_rerun()
         except Exception as e:
             st.error(str(e))
 
@@ -204,12 +202,14 @@ def build(page_title, page_icon, add_form=True):
     with open('style.css') as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+    sf = get_snowflake()
+
     form = None
 
     if add_form:
         form = st.form(page_title)
         with form:
-            aip_design(page_title, page_icon, add_form)
+            aip_design(sf, page_title, page_icon, add_form)
     else:
         aip_design(page_title, page_icon)
 

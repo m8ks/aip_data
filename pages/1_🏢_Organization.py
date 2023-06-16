@@ -2,7 +2,7 @@ import pandas as pd
 import aip
 from aip import *
 
-form = aip.build(page_title='Organization list', page_icon='🏢')
+form = aip.build(page_title='Organization list', page_icon='🏢', add_form=True)
 sf = aip.get_snowflake()
 
 if sf.connected():
