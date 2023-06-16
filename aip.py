@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import base64
 import streamlit.components.v1 as stc
 
-
 cookie_name = 'streamlit_cookie'
 
 
@@ -16,7 +15,11 @@ cookie_name = 'streamlit_cookie'
 def get_manager():
     return stx.CookieManager()
 
+
 cookie_manager = get_manager()
+
+cookie_manager.get_all()
+
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def get_snowflake():
@@ -83,6 +86,7 @@ def clear_cookie_manager():
         get_manager().delete(cookie_name)
 
     get_snowflake().clear_authorization()
+
 
 def aip_design(page_title, page_icon, add_form=False):
     sf = get_snowflake()
@@ -196,7 +200,8 @@ def aip_design(page_title, page_icon, add_form=False):
                     except Exception as e:
                         st.error(str(e))
 
-def build(page_title, page_icon, add_form = True):
+
+def build(page_title, page_icon, add_form=True):
     # Config
     st.set_page_config(page_title=page_title, page_icon=page_icon, layout='wide')
     # Style

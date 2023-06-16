@@ -8,6 +8,6 @@ snowflake:
   role: ['ACCOUNTADMIN', 'SYSADMIN', 'FYI_BUDGET_TRACKER_DB_ADMIN_ROLE']
 cookie:
   expiry_hours: 0
-  expiry_minutes: 30
+  expiry_minutes: 5
 file_upload:
   delimiter: ','
