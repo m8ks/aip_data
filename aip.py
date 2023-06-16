@@ -51,7 +51,7 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
 
 
 def get_cookie_values():
-    cookie_manager.get_all()
+    get_manager().get_all()
 
     user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value \
         = None, None, None, None, None, None, None, None
