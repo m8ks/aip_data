@@ -16,8 +16,6 @@ def get_manager():
     return stx.CookieManager()
 
 
-cookie_manager = get_manager()
-
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def get_snowflake():
     return Snowflake()
@@ -51,7 +49,6 @@ def save_cookie(userid, password, role, schema, database, account, warehouse):
 
 
 def get_cookie_values():
-    get_manager().get_all()
 
     user_value, password_value, role_value, expire_value, schema_value, database_value, account_value, warehouse_value \
         = None, None, None, None, None, None, None, None
@@ -87,7 +84,11 @@ def clear_cookie_manager():
     get_snowflake().clear_authorization()
 
 
-def aip_design(sf, page_title, page_icon, add_form=False):
+def aip_design(page_title, page_icon, add_form=False):
+
+    sf = get_snowflake()
+    cookie_manager = get_manager()
+    cookie_manager.get_all()
 
     [userid, password, role, value, schema, database, account, warehouse] = get_cookie_values()
 
@@ -120,8 +121,8 @@ def aip_design(sf, page_title, page_icon, add_form=False):
         expire = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
     if expire < datetime.now():
-        if cookie_manager.get(cookie_name):
-            cookie_manager.delete(cookie_name)
+        if get_manager().get(cookie_name):
+            get_manager().delete(cookie_name)
 
         get_snowflake().clear_authorization()
         userid = ''
@@ -197,20 +198,21 @@ def aip_design(sf, page_title, page_icon, add_form=False):
 
 def build(page_title, page_icon, add_form=True):
     # Config
-    st.set_page_config(page_title=page_title, page_icon=page_icon, layout='wide')
-    # Style
-    with open('style.css') as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    try:
+        st.set_page_config(page_title=page_title, page_icon=page_icon, layout='wide')
+        # Style
+        with open('style.css') as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-    sf = get_snowflake()
+        form = None
 
-    form = None
-
-    if add_form:
-        form = st.form(page_title)
-        with form:
-            aip_design(sf, page_title, page_icon, add_form)
-    else:
-        aip_design(page_title, page_icon)
+        if add_form:
+            form = st.form(page_title)
+            with form:
+                aip_design(page_title, page_icon, add_form)
+        else:
+            aip_design(page_title, page_icon)
+    except Exception as e:
+        st.error(str(e))
 
     return form
