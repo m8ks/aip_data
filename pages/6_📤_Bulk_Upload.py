@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import aip
-
-aip.build(page_title='Bulk upload', page_icon='📤', add_form=False)
+aip.build(page_title='Bulk upload', page_icon='📤')
 sf = aip.get_snowflake()
 
 if sf.connected():
@@ -82,4 +81,3 @@ if sf.connected():
 
         except Exception as e:
             st.error(str(e))
-
