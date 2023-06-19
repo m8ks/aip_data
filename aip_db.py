@@ -14,7 +14,6 @@ class Snowflake:
     def clear_authorization(self):
         self.connect = None
         self.cx = None
-        self.user = None
 
     def not_connected(self):
         return self.cx is None
